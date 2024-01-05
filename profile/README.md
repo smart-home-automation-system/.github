@@ -1,12 +1,18 @@
-## Hi there 👋
+## Smart Home Automation System
 
-<!--
+It's a microservice application which controls smart home.
 
-**Here are some ideas to get you started:**
+Spring Boot microservice are using
 
-🙋‍♀️ A short introduction - what is your organization all about?
-🌈 Contribution guidelines - how can the community get involved?
-👩‍💻 Useful resources - where can the community find your docs? Is there anything else the community should know?
-🍿 Fun facts - what does your team eat for breakfast?
-🧙 Remember, you can do mighty things with the power of [Markdown](https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
--->
+![Java](https://img.shields.io/badge/java-17-yellow?style=plastic)
+![SpringBoot](https://img.shields.io/badge/SpringBoot-3.2.1-blue?style=plastic)
+
+SpringBoot services are communicating with home system automations like:
+- AMX control system - 2way communication with devices connected to AMX
+  - Eaton wireless devices
+    - temperature sensors
+- Shelly Wi-Fi devices by REST API
+
+### Microservices
+
+- gateway-service (local-port - `6001`)
