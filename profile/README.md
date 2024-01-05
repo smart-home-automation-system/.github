@@ -15,12 +15,12 @@ SpringBoot services are communicating with home system automations like:
 
 ## Microservices
 
-- __gateway-service__ (local-port - `6001`) 
+- __[gateway-service](https://github.com/smart-home-automation-system/gateway-service)__ (local-port - `6001`) 
   
 [![CI](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml)
 
 
 ## Libraries
-- __eaton-utility__
+- __[eaton-utility](https://github.com/smart-home-automation-system/eaton-utility)__
 
 [![CI](https://github.com/magikabdul/cholewa-commons/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/eaton-utility/actions/workflows/CI.yml)
