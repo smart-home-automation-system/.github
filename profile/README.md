@@ -13,8 +13,14 @@ SpringBoot services are communicating with home system automations like:
     - temperature sensors
 - Shelly Wi-Fi devices by REST API
 
-### Microservices
+## Microservices
 
 - __gateway-service__ (local-port - `6001`) 
   
 [![CI](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml)
+
+
+## Libraries
+- __eaton-utility__
+
+[![CI](https://github.com/magikabdul/cholewa-commons/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/eaton-utility/actions/workflows/CI.yml)
