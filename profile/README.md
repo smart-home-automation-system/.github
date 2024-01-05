@@ -15,4 +15,6 @@ SpringBoot services are communicating with home system automations like:
 
 ### Microservices
 
-- gateway-service (local-port - `6001`)
+- __gateway-service__ (local-port - `6001`) 
+  
+[![CI](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml)
