@@ -18,13 +18,13 @@ SpringBoot services are communicating with home system automations like:
 - __[gateway-service](https://github.com/smart-home-automation-system/gateway-service)__ (local-port - `6001`) 
   
 [![CI](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml)
-![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/gateway-service)
+![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/gateway-service?style=plastic)
 
 
 ## Libraries
 - __[eaton-utility](https://github.com/smart-home-automation-system/eaton-utility)__
 
 [![CI](https://github.com/magikabdul/cholewa-commons/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/eaton-utility/actions/workflows/CI.yml)
-![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/eaton-utility)
-![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/eaton-utility)
-![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/eaton-utility)
+![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/eaton-utility?style=plastic)
+![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/eaton-utility?style=plastic)
+![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/eaton-utility?style=plastic)
