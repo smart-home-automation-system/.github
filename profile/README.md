@@ -5,7 +5,7 @@ It's a microservice application which controls smart home.
 Spring Boot microservice are using
 
 ![Java](https://img.shields.io/badge/java-17-yellow?style=plastic)
-![SpringBoot](https://img.shields.io/badge/SpringBoot-3.2.1-blue?style=plastic)
+![SpringBoot](https://img.shields.io/badge/SpringBoot-3.3.2-blue?style=plastic)
 
 SpringBoot services are communicating with home system automations like:
 - AMX control system - 2way communication with devices connected to AMX
@@ -24,7 +24,14 @@ SpringBoot services are communicating with home system automations like:
 ## Libraries
 - __[eaton-utility](https://github.com/smart-home-automation-system/eaton-utility)__
 
-[![CI](https://github.com/magikabdul/cholewa-commons/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/eaton-utility/actions/workflows/CI.yml)
+[![CI](https://github.com/smart-home-automation-system/eaton-utility/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/eaton-utility/actions/workflows/CI.yml)
 ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/eaton-utility?style=plastic)
 ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/eaton-utility?style=plastic)
 ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/eaton-utility?style=plastic)
+
+- __[shelly-client](https://github.com/smart-home-automation-system/shelly-client)__
+
+[![CI](https://github.com/smart-home-automation-system/shelly-client/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/shelly-client/actions/workflows/CI.yml)
+![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/shelly-client?style=plastic)
+![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/shelly-client?style=plastic)
+![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/shelly-client?style=plastic)
