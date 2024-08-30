@@ -21,7 +21,7 @@ SpringBoot services are communicating with home system automations like:
 ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/gateway-service?style=plastic)
 ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/gateway-service?style=plastic)
 
-- __[heating-service](https://github.com/smart-home-automation-system/heatind-service)__ (local-port - `6002`)
+- __[heating-service](https://github.com/smart-home-automation-system/heating-service)__ (local-port - `6002`)
 
     [![CI](https://github.com/smart-home-automation-system/heating-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/heating-service/actions/workflows/CI.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/heating-service?style=plastic)
