@@ -18,12 +18,14 @@ SpringBoot services are communicating with home system automations like:
 - __[gateway-service](https://github.com/smart-home-automation-system/gateway-service)__ (local-port - `6001`)
 
     [![CI](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml)
-    ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/gateway-service?style=plastic)
+![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/gateway-service?style=plastic)
+![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/gateway-service?style=plastic)
 
 - __[heating-service](https://github.com/smart-home-automation-system/heatind-service)__ (local-port - `6002`)
 
     [![CI](https://github.com/smart-home-automation-system/heating-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/heating-service/actions/workflows/CI.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/heating-service?style=plastic)
+![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/heating-service?style=plastic)
 
 ## Libraries
 - __[eaton-utility](https://github.com/smart-home-automation-system/eaton-utility)__
