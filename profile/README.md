@@ -27,6 +27,12 @@ SpringBoot services are communicating with home system automations like:
 ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/heating-service?style=plastic)
 ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/heating-service?style=plastic)
 
+- __[notification-service](https://github.com/smart-home-automation-system/notification-service)__ (local-port - `6003`)
+
+  [![CI](https://github.com/smart-home-automation-system/notification-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/notification-service/actions/workflows/CI.yml)
+  ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/notification-service?style=plastic)
+  ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/notification-service?style=plastic)
+
 ## Libraries
 - __[eaton-utility](https://github.com/smart-home-automation-system/eaton-utility)__
 
