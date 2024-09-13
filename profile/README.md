@@ -53,3 +53,10 @@ SpringBoot services are communicating with home system automations like:
 ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/shelly-client?style=plastic)
 ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/shelly-client?style=plastic)
 ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/shelly-client?style=plastic)
+
+- __[discord-client](https://github.com/smart-home-automation-system/discord-client)__
+
+  [![CI](https://github.com/smart-home-automation-system/discord-client/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/shelly-client/actions/workflows/CI.yml)
+![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/discord-client?style=plastic)
+![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/discord-client?style=plastic)
+![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/discord-client?style=plastic)
