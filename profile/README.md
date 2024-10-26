@@ -47,6 +47,14 @@ SpringBoot services are communicating with home system automations like:
   ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/ai-service?style=plastic)
   ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/ai-service?style=plastic)
 
+- __[database-service](https://github.com/smart-home-automation-system/database-service)__ (local-port - `6005`)
+
+  [![CI](https://github.com/smart-home-automation-system/database-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/database-service/actions/workflows/CI.yml)
+  ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/database-service?style=plastic)
+  ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/database-service?style=plastic)
+  ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/database-service?style=plastic)
+  ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/database-service?style=plastic)
+
 ## Libraries
 - __[eaton-utility](https://github.com/smart-home-automation-system/eaton-utility)__
 
