@@ -70,7 +70,7 @@ SpringBoot services are communicating with home system automations like:
   ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/water-service?style=plastic)
   ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/water-service?style=plastic)
 
-- __[boiler-service](https://github.com/smart-home-automation-system/water-boiler)__ (local-port - `6007`)
+- __[boiler-service](https://github.com/smart-home-automation-system/boiler-service)__ (local-port - `6007`)
 
   [![CI](https://github.com/smart-home-automation-system/boiler-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/boiler-service/actions/workflows/CI.yml)
   [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=smart-home-automation-system_boiler-service&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=smart-home-automation-system_boiler-service)
