@@ -35,6 +35,7 @@ then `/plugin install smart-home@smart-home-tooling` (user scope → available i
 | `deps-update` | workspace root | Version-drift matrix across all repos + ordered upgrade plan (libraries → services → frontend/CI) |
 | `update-readme` | any repo | Bring a README to org standard: badges, description, API table from code (services) or install/usage (libraries) |
 | `jira-backlog` | workspace root | Feature description → well-scoped Jira tasks (≤1 day each, `frontend`-labeled ones exempt) with implementation details, DoD checklists and epic assignment; created in the HAS backlog only after user acceptance. Credentials: `<workspace>/.env` |
+| `jira-sprint` | anywhere | Monthly sprint on the HAS board: status report, rotation when ≥7 tasks Done (close + new 1-month sprint named `YYYY-MM <element>`, carry-over of unfinished tasks), top-up to ≥10 tasks agreed with the user; every mutation behind user confirmation |
 
 Repo-local skills (committed in the repo they concern, not shared):
 
