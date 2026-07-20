@@ -35,7 +35,7 @@ Verified behaviors this setup relies on:
 ### 1. Prerequisites
 
 - `git` + [GitHub CLI](https://cli.github.com/) (`gh auth login`, SSH keys configured)
-- Java 17 (Temurin) + Maven
+- Java 21 + recent Maven (3.9+); Java 17 additionally, while pre-migration repos remain
 - Docker (for images and local `kind` cluster; `kind` + `kubectl` if deploying)
 - Node.js LTS + npm (for `web-application`)
 - [Claude Code](https://code.claude.com) (`npm install -g @anthropic-ai/claude-code` or native installer)

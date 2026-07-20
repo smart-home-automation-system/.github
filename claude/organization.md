@@ -73,6 +73,9 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
   and replacing the discovery locator in `api-gateway-service` with explicit static
   routes using k8s DNS names.
 - `cholewa-security` — stays; possible future use for auth in `api-gateway-service`.
+- **Toolchain migration**: all existing services and libraries move from
+  Java 17 / Spring Boot 4.0.1 to Java 21 / Spring Boot 4.1.0. Until a repo is migrated,
+  its pom and README badges may still show the old versions.
 - `gateway-service` — will be renamed to **`amx-service`** (removes the confusion with
   `api-gateway-service`; consistent with domain-based service naming). The rename happens
   after `eaton-utility` is merged in. Affected places: GitHub repo name, Maven
@@ -81,7 +84,10 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 
 ## Conventions
 
-- Java 17, Spring Boot 4.0.1 (`spring-boot-starter-parent`), Maven, groupId `cloud.cholewa`.
+- **Target toolchain: Java 21, Spring Boot 4.1.0** (`spring-boot-starter-parent`), Maven,
+  groupId `cloud.cholewa`. New services and libraries start on the target versions.
+  Existing repos are still on Java 17 / Spring Boot 4.0.1 and will be migrated soon
+  (see Pending architecture changes).
 - Libraries are consumed from GitHub Packages
   (`https://maven.pkg.github.com/smart-home-automation-system/*`).
 - CI/CD — GitHub Actions in every repo:
