@@ -104,3 +104,7 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 - Never commit or push unless explicitly asked.
 - All repos except `deployment-tools` are public: never put secrets, tokens, IP addresses,
   or private infrastructure details into files of public repos.
+  - Accepted risk (conscious decision, 2026-07): private **LAN IPs** already present in
+    service configs (e.g. `application.yaml`) are tolerated — keeping them beats the
+    overhead of maintaining k8s secrets for LAN addresses. Do not flag them in reviews.
+    Secrets, tokens and credentials remain strictly forbidden.
