@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `database-service` | 6005 | Persistence facade for other services |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
-| `shelly-cloud-service` | — | Shelly cloud integration |
+| `shelly-cloud-service` | — | Shelly cloud integration — **unfinished, local-only** (not a git repo, no GitHub repo yet; kept as is for now) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `gateway-service` (AMX hardware bridge).
@@ -31,10 +31,16 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 | Library | Purpose | Current consumers |
 |---|---|---|
 | `cholewa-commons` | Common utilities | api-gateway, boiler, database, gateway, heating, shelly-cloud, water |
+| `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
 | `smart-home-sdk` | Shared domain / API models | boiler, database, gateway, heating, shelly-cloud, water |
 | `shelly-client` | REST client for Shelly devices | boiler, heating, shelly-cloud, water |
 | `eaton-utility` | Eaton device helpers | gateway-service only — **to be merged into gateway-service** |
-| `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
+
+`cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
+`magikabdul` GitHub account (not the org): they are also used by services outside this
+project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom server id
+`github-prv`); the org libraries use `.../smart-home-automation-system/*`
+(`github-org-smart-home`). Do not propose moving them into the org.
 
 ### Other repositories
 
@@ -88,8 +94,10 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   Existing repos are still on Java 17 / Spring Boot 4.0.1 and will be migrated soon
   (see Pending architecture changes).
-- Libraries are consumed from GitHub Packages
-  (`https://maven.pkg.github.com/smart-home-automation-system/*`).
+- Libraries are consumed from GitHub Packages: org libraries from
+  `maven.pkg.github.com/smart-home-automation-system/*`, the personal-account libraries
+  (`cholewa-commons`, `cholewa-security`) from `maven.pkg.github.com/magikabdul/*` —
+  see the note under the library table.
 - CI/CD — GitHub Actions in every repo:
   - `CI.yml` — build + tests on push/PR.
   - `sonar.yml` — SonarCloud analysis.
