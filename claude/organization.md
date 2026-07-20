@@ -57,7 +57,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `organization-repository` — local clone of the org's `.github` repo: organization
   profile README and this shared Claude configuration (`claude/`).
 - `claude-tooling` — Claude Code plugin marketplace with the `smart-home` plugin
-  (7 org skills — see `claude/skills.md`).
+  (org skills — see `claude/skills.md`).
+- `tenczynek-network-setup` — **PRIVATE**: home network setup; dormant (last change
+  2022), not cloned in the workspace.
 
 ## Architecture notes
 
@@ -69,8 +71,6 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 
 ## Pending architecture changes (decided 2026-07, executed by the user)
 
-- `discord-client` — repository will be removed (no consumers; `notification-service`
-  has its own Discord implementation).
 - `eaton-utility` — will be merged into `gateway-service` (its only consumer), then the
   library repo retired.
 - `service-discovery` (Eureka) — will be removed: k8s DNS covers discovery. This implies
