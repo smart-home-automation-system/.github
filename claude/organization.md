@@ -39,12 +39,19 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 ### Other repositories
 
 - `amx` — AMX/NetLinx sources for the physical control system (not Java).
-- `web-application` — Angular frontend; being (re)built completely from scratch.
+- `web-application` — Angular + Angular Material frontend (desktop-first, responsive).
+  Claude has full autonomy here, but every change goes through a feature branch and a PR
+  reviewed by the user. Key decisions (details in the repo's `CLAUDE.md`): household-member
+  profiles without login (profile picker persisted in the browser, future JWT-ready),
+  data via polling of `api-gateway-service` behind a per-domain data-access layer
+  (SSE-ready), personalized home page per profile (own room + shortcuts + common areas).
 - `deployment-tools` — **PRIVATE**: Kubernetes manifests, local `kind` cluster setup,
   pipelines, RabbitMQ config. Private infrastructure details belong here, never in
   public repos.
 - `organization-repository` — local clone of the org's `.github` repo: organization
   profile README and this shared Claude configuration (`claude/`).
+- `claude-tooling` — Claude Code plugin marketplace with the `smart-home` plugin
+  (7 org skills — see `claude/skills.md`).
 
 ## Architecture notes
 
@@ -83,7 +90,9 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
   - Services: `release.yml` — release builds a Docker image pushed to Docker Hub.
   - Libraries: `package.yml` — release publishes the artifact to GitHub Packages.
 - A new microservice mirrors the structure and workflows of `water-service`
-  (the reference service) until a dedicated scaffolding skill exists.
+  (the reference service) — use the `new-service` skill from the `smart-home` plugin
+  (`claude-tooling` repo); for libraries, `new-library` with `smart-home-sdk` as the
+  reference.
 
 ## Working rules for Claude
 

@@ -20,14 +20,20 @@ Notes:
 - Library review checklist: breaking API changes require checking every consumer listed in
   `organization.md` and flagging required version bumps.
 
-## Planned custom skills (org plugin marketplace, not yet created)
+## Org skills (plugin `smart-home`, marketplace repo `claude-tooling`)
 
-| Skill | Scope | Purpose |
+Install once per machine: `/plugin marketplace add smart-home-automation-system/claude-tooling`
+then `/plugin install smart-home@smart-home-tooling` (user scope → available in every repo).
+
+| Skill | Where to run | Purpose |
 |---|---|---|
-| `new-service` | workspace | Scaffold a new microservice from the `water-service` reference: pom, Dockerfile, `CI.yml`/`release.yml`/`sonar.yml`, README, CLAUDE.md; register it in `organization.md` and the org profile README |
-| `new-library` | workspace | Same for a library (`package.yml` → GitHub Packages) |
-| `service-review` | services/libraries | Review against org conventions (reactive rules, commons/security usage, Rabbit contracts, dependency versions) |
-| `release` | services/libraries | Guide a release: version bump, tag, correct workflow, artifact destination |
+| `new-service` | workspace root | Scaffold a new microservice from the `water-service` reference (pom, Dockerfile, workflows, README, CLAUDE.md, GitHub repo, org docs) |
+| `new-library` | workspace root | Same for a library (`package.yml` → GitHub Packages) |
+| `service-review` | service/library repo | Review against org conventions: reactive discipline, reuse of shared libs, cross-repo contracts, version drift, public-repo hygiene |
+| `release` | service/library repo | Guided release checklist (does not execute): pre-checks, semver proposal, `gh release create` command, artifact verification |
+| `sync-org-docs` | workspace root | Sync `organization.md` + profile README with the actual repo inventory (badges, tables, consumers, ports) |
+| `deps-update` | workspace root | Version-drift matrix across all repos + ordered upgrade plan (libraries → services → frontend/CI) |
+| `update-readme` | any repo | Bring a README to org standard: badges, description, API table from code (services) or install/usage (libraries) |
 
 Repo-local skills (committed in the repo they concern, not shared):
 

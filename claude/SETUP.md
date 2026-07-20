@@ -100,10 +100,18 @@ with a PAT that has `read:packages` (plus `write:packages` if publishing locally
 
 - Built-in Claude Code skills (`/code-review`, `/security-review`, `/review`, …) work out
   of the box — see `claude/skills.md` for which to use where.
-- Custom org skills (planned): once the `claude-tooling` marketplace repo exists, install
-  with `/plugin marketplace add smart-home-automation-system/claude-tooling` and enable
-  the plugin globally in `~/.claude/settings.json` (`enabledPlugins`) so the skills are
-  available in every repo.
+- Org skills live in the `claude-tooling` marketplace repo (plugin `smart-home`,
+  7 skills — see `claude/skills.md`). Install once per machine:
+
+  ```
+  claude plugin marketplace add smart-home-automation-system/claude-tooling
+  claude plugin install smart-home@smart-home-tooling
+  ```
+
+  (or the `/plugin` equivalents inside a session). The install is user-scoped, so the
+  skills are available in every repo. When developing the skills themselves, add the
+  marketplace from the local path instead:
+  `claude plugin marketplace add <workspace>/claude-tooling`.
 
 ### 6. Daily usage
 
