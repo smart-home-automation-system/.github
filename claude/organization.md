@@ -108,6 +108,10 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 - **`web-application`**: full autonomy — Claude designs and implements the frontend.
 - **`amx`**: NetLinx language; analysis and suggestions, ask before modifying.
 - Never commit or push unless explicitly asked.
+- **All changes to Spring services, libraries and `web-application` go through pull
+  requests** — no direct commits to `main`. Branch naming: **`feature/HAS-<n>`**, where
+  `<n>` is the Jira task number (HAS project). When no Jira task covers the change,
+  create one first (`jira-backlog`) or confirm with the user how to proceed.
 - All repos except `deployment-tools` are public: never put secrets, tokens, IP addresses,
   or private infrastructure details into files of public repos.
   - Accepted risk (conscious decision, 2026-07): private **LAN IPs** already present in
