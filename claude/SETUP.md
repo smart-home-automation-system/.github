@@ -96,6 +96,16 @@ with a PAT that has `read:packages` (plus `write:packages` if publishing locally
 </settings>
 ```
 
+### 4a. Shared secrets for skills (`<workspace>/.env`)
+
+Some skills (e.g. `jira-backlog`) read credentials from a `.env` file in the workspace
+root — deliberately outside every git repository. Create it with:
+
+```
+JIRA_EMAIL=<atlassian account email>
+JIRA_API_TOKEN=<token from id.atlassian.com -> Security -> API tokens>
+```
+
 ### 5. Skills
 
 - Built-in Claude Code skills (`/code-review`, `/security-review`, `/review`, …) work out

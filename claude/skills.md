@@ -34,6 +34,7 @@ then `/plugin install smart-home@smart-home-tooling` (user scope → available i
 | `sync-org-docs` | workspace root | Sync `organization.md` + profile README with the actual repo inventory (badges, tables, consumers, ports) |
 | `deps-update` | workspace root | Version-drift matrix across all repos + ordered upgrade plan (libraries → services → frontend/CI) |
 | `update-readme` | any repo | Bring a README to org standard: badges, description, API table from code (services) or install/usage (libraries) |
+| `jira-backlog` | workspace root | Feature description → well-scoped Jira tasks (≤1 day each, `frontend`-labeled ones exempt) with implementation details, DoD checklists and epic assignment; created in the HAS backlog only after user acceptance. Credentials: `<workspace>/.env` |
 
 Repo-local skills (committed in the repo they concern, not shared):
 
