@@ -81,14 +81,6 @@ SpringBoot services are communicating with home system automations like:
 
 ## Libraries
 
-- __[eaton-utility](https://github.com/smart-home-automation-system/eaton-utility)__
-
-  [![CI](https://github.com/smart-home-automation-system/eaton-utility/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/eaton-utility/actions/workflows/CI.yml)
-  [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=smart-home-automation-system_eaton-utility&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=smart-home-automation-system_eaton-utility)
-  ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/eaton-utility?style=plastic)
-  ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/eaton-utility?style=plastic)
-  ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/eaton-utility?style=plastic)
-
 - __[shelly-client](https://github.com/smart-home-automation-system/shelly-client)__
 
   [![CI](https://github.com/smart-home-automation-system/shelly-client/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/shelly-client/actions/workflows/CI.yml)

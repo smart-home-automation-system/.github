@@ -34,7 +34,6 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
 | `smart-home-sdk` | Shared domain / API models | boiler, database, gateway, heating, shelly-cloud, water |
 | `shelly-client` | REST client for Shelly devices | boiler, heating, shelly-cloud, water |
-| `eaton-utility` | Eaton device helpers | gateway-service only — **to be merged into gateway-service** |
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
 `magikabdul` GitHub account (not the org): they are also used by services outside this
@@ -71,8 +70,6 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 
 ## Pending architecture changes (decided 2026-07, executed by the user)
 
-- `eaton-utility` — will be merged into `gateway-service` (its only consumer), then the
-  library repo retired.
 - `service-discovery` (Eureka) — will be removed: k8s DNS covers discovery. This implies
   removing the `spring-cloud-starter-netflix-eureka-client` dependency and config from
   `api-gateway-service`, `boiler-service`, `shelly-cloud-service` and `water-service`,
@@ -83,8 +80,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   Java 17 / Spring Boot 4.0.1 to Java 21 / Spring Boot 4.1.0. Until a repo is migrated,
   its pom and README badges may still show the old versions.
 - `gateway-service` — will be renamed to **`amx-service`** (removes the confusion with
-  `api-gateway-service`; consistent with domain-based service naming). The rename happens
-  after `eaton-utility` is merged in. Affected places: GitHub repo name, Maven
+  `api-gateway-service`; consistent with domain-based service naming). The eaton-utility
+  merge is done (v1.1.0), so the rename is unblocked. Affected places: GitHub repo name, Maven
   artifactId/`spring.application.name`, Docker Hub image name, k8s manifests in
   `deployment-tools`, org profile README badges/links.
 
