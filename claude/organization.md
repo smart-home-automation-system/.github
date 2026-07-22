@@ -14,7 +14,7 @@ except `deployment-tools`.
 |---|---|---|
 | `service-discovery` | 6000 | Eureka server |
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside (k8s ingress routes here) |
-| `gateway-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) — **to be renamed `amx-service`** |
+| `amx-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) |
 | `heating-service` | 6002 | Heating control |
 | `notification-service` | 6003 | Notifications (Discord bot) |
 | `ai-service` | 6004 | AI integration |
@@ -24,15 +24,15 @@ except `deployment-tools`.
 | `shelly-cloud-service` | — | Shelly cloud integration — **unfinished, local-only** (not a git repo, no GitHub repo yet; kept as is for now) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
-`gateway-service` (AMX hardware bridge).
+`amx-service` (AMX hardware bridge).
 
 ### Shared libraries (Maven, `cloud.cholewa` group)
 
 | Library | Purpose | Current consumers |
 |---|---|---|
-| `cholewa-commons` | Common utilities | api-gateway, boiler, database, gateway, heating, shelly-cloud, water |
+| `cholewa-commons` | Common utilities | amx, api-gateway, boiler, database, heating, shelly-cloud, water |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
-| `smart-home-sdk` | Shared domain / API models | boiler, database, gateway, heating, shelly-cloud, water |
+| `smart-home-sdk` | Shared domain / API models | amx, boiler, database, heating, shelly-cloud, water |
 | `shelly-client` | REST client for Shelly devices | boiler, heating, shelly-cloud, water |
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -63,7 +63,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 ## Architecture notes
 
 - Reactive stack everywhere: Spring WebFlux, no blocking calls in service code.
-- Async messaging via RabbitMQ: `gateway-service`, `heating-service`, `notification-service`.
+- Async messaging via RabbitMQ: `amx-service`, `heating-service`, `notification-service`.
 - Service discovery: Kubernetes-native (k8s Services + DNS). Eureka
   (`service-discovery`) is being phased out — see Pending architecture changes.
 - External traffic: k8s → `api-gateway-service` → internal services.
@@ -79,11 +79,6 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - **Toolchain migration**: all existing services and libraries move from
   Java 17 / Spring Boot 4.0.1 to Java 21 / Spring Boot 4.1.0. Until a repo is migrated,
   its pom and README badges may still show the old versions.
-- `gateway-service` — will be renamed to **`amx-service`** (removes the confusion with
-  `api-gateway-service`; consistent with domain-based service naming). The eaton-utility
-  merge is done (v1.1.0), so the rename is unblocked. Affected places: GitHub repo name, Maven
-  artifactId/`spring.application.name`, Docker Hub image name, k8s manifests in
-  `deployment-tools`, org profile README badges/links.
 
 ## Conventions
 

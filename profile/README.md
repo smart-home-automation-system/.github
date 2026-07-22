@@ -16,14 +16,14 @@ SpringBoot services are communicating with home system automations like:
 
 ## Microservices
 
-- __[gateway-service](https://github.com/smart-home-automation-system/gateway-service)__ (local-port - `6001`)
+- __[amx-service](https://github.com/smart-home-automation-system/amx-service)__ (local-port - `6001`)
 
-  [![CI](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/gateway-service/actions/workflows/CI.yml)
-  [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=smart-home-automation-system_gateway-service&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=smart-home-automation-system_gateway-service)
-  ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/gateway-service?style=plastic)
-  ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/gateway-service?style=plastic)
-  ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/gateway-service?style=plastic)
-  ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/gateway-service?style=plastic)
+  [![CI](https://github.com/smart-home-automation-system/amx-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/amx-service/actions/workflows/CI.yml)
+  [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=smart-home-automation-system_amx-service&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=smart-home-automation-system_amx-service)
+  ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/amx-service?style=plastic)
+  ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/amx-service?style=plastic)
+  ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/amx-service?style=plastic)
+  ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/amx-service?style=plastic)
 
 - __[heating-service](https://github.com/smart-home-automation-system/heating-service)__ (local-port - `6002`)
 
