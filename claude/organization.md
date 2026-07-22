@@ -81,15 +81,17 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration.
+  own migration. `cholewa-security` migrated and released as **1.0.0**
+  (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
+  consumers yet, so no coordinated bumps needed.
 
 ## Conventions
 
 - **Target toolchain: Java 21, Spring Boot 4.1.0** (`spring-boot-starter-parent`), Maven,
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   Existing repos are still on Java 17 / Spring Boot 4.0.1 and will be migrated soon
-  (see Pending architecture changes); `cholewa-commons` is already on the target
-  versions (since 1.0.0).
+  (see Pending architecture changes); `cholewa-commons` and `cholewa-security` are
+  already on the target versions (both since 1.0.0).
 - Libraries are consumed from GitHub Packages: org libraries from
   `maven.pkg.github.com/smart-home-automation-system/*`, the personal-account libraries
   (`cholewa-commons`, `cholewa-security`) from `maven.pkg.github.com/magikabdul/*` —
