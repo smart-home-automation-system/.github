@@ -89,7 +89,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   which closed the 4 Dependabot jackson-databind alerts. Its consumers
   (`amx-service`, `boiler-service`, `database-service`, `heating-service`,
   `shelly-cloud-service`, `water-service`) stay on the old SDK (0.1.x) until their own
-  Java 21 migration — this release unblocks them.
+  Java 21 migration — this release unblocks them. `shelly-client` migrated and released
+  as **1.0.0** (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
+  a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
+  which closes its 4 Dependabot jackson-databind alerts. Its consumers
+  (`boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
+  the old client (0.0.x) until their own Java 21 migration.
 
 ## Conventions
 
@@ -97,8 +102,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   Existing repos are still on Java 17 / Spring Boot 4.0.1 and will be migrated soon
   (see Pending architecture changes); `cholewa-commons` and `cholewa-security` are
-  already on the target versions, and `smart-home-sdk` is on Java 21 (all released as
-  1.0.0; `smart-home-sdk` has no Spring Boot parent).
+  already on the target versions, and `smart-home-sdk` and `shelly-client` are on Java 21
+  (all released as 1.0.0; `smart-home-sdk` and `shelly-client` have no Spring Boot parent).
 - Libraries are consumed from GitHub Packages: org libraries from
   `maven.pkg.github.com/smart-home-automation-system/*`, the personal-account libraries
   (`cholewa-commons`, `cholewa-security`) from `maven.pkg.github.com/magikabdul/*` —
