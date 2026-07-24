@@ -30,7 +30,7 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 
 | Library | Purpose | Current consumers |
 |---|---|---|
-| `cholewa-commons` | Common utilities | amx, api-gateway, boiler, database, heating, notification, shelly-cloud, water |
+| `cholewa-commons` | Common utilities | ai, amx, api-gateway, boiler, database, heating, notification, shelly-cloud, water |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
 | `smart-home-sdk` | Shared domain / API models | amx, boiler, database, heating, shelly-cloud, water |
 | `shelly-client` | REST client for Shelly devices | boiler, heating, shelly-cloud, water |
@@ -101,12 +101,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   The first **service** migrated is `notification-service` — Java 21 / Spring Boot 4.1.0,
   released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
   `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
-  of that library). The second service being migrated is `ai-service` (HAS-125,
-  2026-07-24) — Java 21 / Spring Boot 4.1.0 (from an outlier Spring Boot 3.3.4). Work is on
-  `feature/HAS-125` (PR #2), **not yet released** (still `0.0.1-SNAPSHOT`), so it is not yet
-  in the consumer table above. It uses neither `smart-home-sdk` nor `shelly-client` and
-  adopts `cholewa-commons` 1.1.0 as a new consumer, wiring its `GlobalErrorExceptionHandler`
-  for consistent error responses like `notification-service`. Its AI framework changed from
+  of that library). The second service migrated is `ai-service` — Java 21 / Spring Boot 4.1.0,
+  released **0.1.0** (2026-07-24, HAS-125), from an outlier Spring Boot 3.3.4. It uses
+  neither `smart-home-sdk` nor `shelly-client` and adopts `cholewa-commons` 1.1.0 as a new
+  consumer, wiring its `GlobalErrorExceptionHandler` for consistent error responses like
+  `notification-service`. Its AI framework changed from
   **langchain4j to Spring AI 2.0.0** — langchain4j's Spring Boot starter (1.x) is not Boot 4
   compatible, whereas Spring AI 2.0.0 targets Boot 4.1 / Spring Framework 7 — so the service
   now calls OpenAI through a reactive Spring AI `ChatClient`. The remaining services (`amx-service`,
