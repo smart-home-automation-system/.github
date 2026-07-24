@@ -30,7 +30,7 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 
 | Library | Purpose | Current consumers |
 |---|---|---|
-| `cholewa-commons` | Common utilities | amx, api-gateway, boiler, database, heating, shelly-cloud, water |
+| `cholewa-commons` | Common utilities | amx, api-gateway, boiler, database, heating, notification, shelly-cloud, water |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
 | `smart-home-sdk` | Shared domain / API models | amx, boiler, database, heating, shelly-cloud, water |
 | `shelly-client` | REST client for Shelly devices | boiler, heating, shelly-cloud, water |
@@ -81,7 +81,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. `cholewa-security` migrated and released as **1.0.0**
+  own migration. It has since had two feature releases — **1.0.1** (2026-07-23, HAS-131 —
+  select `ExceptionProcessor` by exception hierarchy, not exact class) and **1.1.0**
+  (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`); current
+  latest is **1.1.0**. `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
   released as **1.0.0** (2026-07-23, HAS-119) — Java 21 + Jackson 3 (dropped
@@ -95,6 +98,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   which closes its 4 Dependabot jackson-databind alerts. Its consumers
   (`boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
   the old client (0.0.x) until their own Java 21 migration.
+  The first **service** migrated is `notification-service` — Java 21 / Spring Boot 4.1.0,
+  released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
+  `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
+  of that library). The remaining services (`amx-service`, `api-gateway-service`,
+  `boiler-service`, `database-service`, `heating-service`, `shelly-cloud-service`,
+  `water-service`) stay on Java 17 / Spring Boot 4.0.x until their own migration.
 
 ## Conventions
 
