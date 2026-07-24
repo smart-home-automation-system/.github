@@ -101,9 +101,19 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   The first **service** migrated is `notification-service` — Java 21 / Spring Boot 4.1.0,
   released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
   `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
-  of that library). The remaining services (`amx-service`, `api-gateway-service`,
-  `boiler-service`, `database-service`, `heating-service`, `shelly-cloud-service`,
-  `water-service`) stay on Java 17 / Spring Boot 4.0.x until their own migration.
+  of that library). The second service being migrated is `ai-service` (HAS-125,
+  2026-07-24) — Java 21 / Spring Boot 4.1.0, jumping from an outlier Spring Boot 3.3.4
+  (it was never on the 4.0.1 baseline). Work is prepared on `feature/HAS-125` and **not
+  yet released** (still `0.0.1-SNAPSHOT`, PR pending). Like `notification-service` it uses
+  neither `smart-home-sdk` nor `shelly-client` (it is `langchain4j`-based) and adopts
+  `cholewa-commons` 1.1.0 as a new consumer. The migration also brought the workflows up
+  to the `notification-service` reference (Boot-4 `release.yml`/`sonar.yml`, Java 21,
+  actions pinned to SHA), moved the Dockerfile to `jarmode=tools` (Boot 4 dropped
+  `layertools`), added the `spring-boot-http-client` module logbook needs on Boot 4.1, and
+  aligned `webflux.base-path` to `/home/ai`. The remaining services (`amx-service`,
+  `api-gateway-service`, `boiler-service`, `database-service`, `heating-service`,
+  `shelly-cloud-service`, `water-service`) stay on Java 17 / Spring Boot 4.0.x until their
+  own migration.
 
 ## Conventions
 
