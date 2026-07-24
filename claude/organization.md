@@ -102,23 +102,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
   `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
   of that library). The second service being migrated is `ai-service` (HAS-125,
-  2026-07-24) — Java 21 / Spring Boot 4.1.0, jumping from an outlier Spring Boot 3.3.4
-  (it was never on the 4.0.1 baseline). Work is prepared on `feature/HAS-125` (PR #2) and
-  **not yet released** (still `0.0.1-SNAPSHOT`). It uses neither `smart-home-sdk` nor
-  `shelly-client` and adopts `cholewa-commons` 1.1.0 as a new consumer — wiring its
-  `GlobalErrorExceptionHandler` (`@Order(-2)`) via an `ExceptionHandlerConfig` for
-  consistent error responses (the same shared error-handling pattern as
-  `notification-service`). As part of the
-  migration its AI framework changed from **langchain4j to Spring AI 2.0.0**: langchain4j's
-  Spring Boot starter (1.x) is not Spring Boot 4 compatible (its spring-restclient bridge
-  targets Boot 3), and 0.34.0 only builds behind an okhttp convergence pin, whereas Spring
-  AI 2.0.0 is built for the exact stack (`spring-boot-starter-webclient`/`restclient` 4.1.0,
-  Spring Framework 7.0.8). The service now exposes `POST /home/ai` returning the model reply
-  through a reactive `ChatClient` (WebFlux, `spring.ai.openai.*` config). The migration also
-  brought the workflows up to the `notification-service` reference (Boot-4
-  `release.yml`/`sonar.yml`, Java 21, actions pinned to SHA), moved the Dockerfile to
-  `jarmode=tools` (Boot 4 dropped `layertools`), added the `spring-boot-http-client` module
-  logbook needs on Boot 4.1, and aligned `webflux.base-path` to `/home/ai`. The remaining services (`amx-service`,
+  2026-07-24) — Java 21 / Spring Boot 4.1.0 (from an outlier Spring Boot 3.3.4). Work is on
+  `feature/HAS-125` (PR #2), **not yet released** (still `0.0.1-SNAPSHOT`), so it is not yet
+  in the consumer table above. It uses neither `smart-home-sdk` nor `shelly-client` and
+  adopts `cholewa-commons` 1.1.0 as a new consumer, wiring its `GlobalErrorExceptionHandler`
+  for consistent error responses like `notification-service`. Its AI framework changed from
+  **langchain4j to Spring AI 2.0.0** — langchain4j's Spring Boot starter (1.x) is not Boot 4
+  compatible, whereas Spring AI 2.0.0 targets Boot 4.1 / Spring Framework 7 — so the service
+  now calls OpenAI through a reactive Spring AI `ChatClient`. The remaining services (`amx-service`,
   `api-gateway-service`, `boiler-service`, `database-service`, `heating-service`,
   `shelly-cloud-service`, `water-service`) stay on Java 17 / Spring Boot 4.0.x until their
   own migration.
