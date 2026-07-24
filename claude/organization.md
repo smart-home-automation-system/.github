@@ -105,7 +105,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   2026-07-24) — Java 21 / Spring Boot 4.1.0, jumping from an outlier Spring Boot 3.3.4
   (it was never on the 4.0.1 baseline). Work is prepared on `feature/HAS-125` (PR #2) and
   **not yet released** (still `0.0.1-SNAPSHOT`). It uses neither `smart-home-sdk` nor
-  `shelly-client` and adopts `cholewa-commons` 1.1.0 as a new consumer. As part of the
+  `shelly-client` and adopts `cholewa-commons` 1.1.0 as a new consumer — wiring its
+  `GlobalErrorExceptionHandler` (`@Order(-2)`) via an `ExceptionHandlerConfig` for
+  consistent error responses (the same shared error-handling pattern as
+  `notification-service`). As part of the
   migration its AI framework changed from **langchain4j to Spring AI 2.0.0**: langchain4j's
   Spring Boot starter (1.x) is not Spring Boot 4 compatible (its spring-restclient bridge
   targets Boot 3), and 0.34.0 only builds behind an okhttp convergence pin, whereas Spring
