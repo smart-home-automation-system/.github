@@ -162,8 +162,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `<n>` is the Jira task number (HAS project). When no Jira task covers the change,
   create one first (`jira-backlog`) or confirm with the user how to proceed.
   - **Exceptions — commit straight to `main`, no branch or PR:** `organization-repository`
-    (this `.github` repo) and `deployment-tools`. Do not create `feature/*` branches or
-    PRs for these; just commit to `main` and push (still only when explicitly asked).
+    (this `.github` repo), `deployment-tools` and `claude-tooling`. Do not create
+    `feature/*` branches or PRs for these; just commit to `main` and push (still only when
+    explicitly asked). They also do not need a Jira task of their own — a change there is
+    usually a side effect of work tracked elsewhere, so reference that task in the commit
+    message when one exists.
 - All repos except `deployment-tools` are public: never put secrets, tokens, IP addresses,
   or private infrastructure details into files of public repos.
   - Accepted risk (conscious decision, 2026-07): private **LAN IPs** already present in
