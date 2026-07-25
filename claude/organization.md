@@ -89,11 +89,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
   released as **1.0.0** (2026-07-23, HAS-119) — Java 21 + Jackson 3 (dropped
   `jackson-databind`, generated models keep `com.fasterxml.jackson.annotation` only),
-  which closed the 4 Dependabot jackson-databind alerts. Its consumers
-  (`amx-service`, `boiler-service`, `database-service`, `heating-service`,
-  `shelly-cloud-service`, `water-service`) stay on the old SDK (0.1.x) until their own
-  Java 21 migration — this release unblocks them. `shelly-client` migrated and released
-  as **1.0.0** (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
+  which closed the 4 Dependabot jackson-databind alerts. `database-service` adopted it
+  during its own migration (HAS-126); the remaining consumers (`amx-service`,
+  `boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
+  the old SDK (0.1.x) until their own Java 21 migration — this release unblocks them.
+  `shelly-client` migrated and released as **1.0.0**
+  (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
   which closes its 4 Dependabot jackson-databind alerts. Its consumers
   (`boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
@@ -108,19 +109,32 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `notification-service`. Its AI framework changed from
   **langchain4j to Spring AI 2.0.0** — langchain4j's Spring Boot starter (1.x) is not Boot 4
   compatible, whereas Spring AI 2.0.0 targets Boot 4.1 / Spring Framework 7 — so the service
-  now calls OpenAI through a reactive Spring AI `ChatClient`. The remaining services (`amx-service`,
-  `api-gateway-service`, `boiler-service`, `database-service`, `heating-service`,
-  `shelly-cloud-service`, `water-service`) stay on Java 17 / Spring Boot 4.0.x until their
-  own migration.
+  now calls OpenAI through a reactive Spring AI `ChatClient`. The third service migrated is
+  `database-service` — Java 21 / Spring Boot 4.1.0, released **0.2.0** (2026-07-25, HAS-126),
+  deployed and verified on the cluster. It is the **first migrated service that consumes the
+  shared domain models**, so it is also the first consumer of `smart-home-sdk` 1.0.0 (next to
+  `cholewa-commons` 1.1.0); the REST contract it serves to `amx-service` is unchanged, so
+  `amx-service` keeps working on the old library versions. Two things surfaced there that
+  every following service migration will hit: logbook 4.x needs the optional
+  `spring-boot-http-client` module on Boot 4.1 or the context will not start, and the k8s
+  manifest must launch the image with `-jar application.jar` — Boot 4 dropped `layertools`,
+  so the old `JarLauncher` command crashes the pod. The remaining services (`amx-service`,
+  `boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
+  Java 17 / Spring Boot 4.0.x until their own migration; `api-gateway-service` and
+  `service-discovery` are a separate case — both still run **Spring Boot 3.5.0 on Java 21**
+  (Spring Cloud), and `service-discovery` is being retired anyway.
 
 ## Conventions
 
 - **Target toolchain: Java 21, Spring Boot 4.1.0** (`spring-boot-starter-parent`), Maven,
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
-  Existing repos are still on Java 17 / Spring Boot 4.0.1 and will be migrated soon
-  (see Pending architecture changes); `cholewa-commons` and `cholewa-security` are
-  already on the target versions, and `smart-home-sdk` and `shelly-client` are on Java 21
-  (all released as 1.0.0; `smart-home-sdk` and `shelly-client` have no Spring Boot parent).
+  All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
+  target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
+  parent; all released as 1.0.0), and three services — `notification-service`, `ai-service`
+  and `database-service` — are on the target toolchain. The rest (`amx-service`,
+  `boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) are still on
+  Java 17 / Spring Boot 4.0.x, and `api-gateway-service` / `service-discovery` on Spring Boot
+  3.5.0 / Java 21; all will be migrated (see Pending architecture changes).
 - Libraries are consumed from GitHub Packages: org libraries from
   `maven.pkg.github.com/smart-home-automation-system/*`, the personal-account libraries
   (`cholewa-commons`, `cholewa-security`) from `maven.pkg.github.com/magikabdul/*` —
