@@ -82,19 +82,70 @@ To recreate this workspace and configuration on another machine, see
 ### 4. Maven access to GitHub Packages
 
 Services consume the `cloud.cholewa` libraries from GitHub Packages, which requires
-authentication even for public packages. In `~/.m2/settings.xml` add servers matching the
-ids used in the poms (`github-org-smart-home`, `github-prv`, and `github` for publishing),
-with a PAT that has `read:packages` (plus `write:packages` if publishing locally):
+authentication even for public packages. Maven does not create `~/.m2/settings.xml` on its
+own (a fresh install only has `~/.m2/repository/`), and the stock
+`<maven-home>/conf/settings.xml` is a commented-out template — so the file has to be
+written by hand. Without it every build fails on a 401 while resolving `cloud.cholewa`
+artifacts.
+
+Generate a **classic** PAT at <https://github.com/settings/tokens> with `read:packages`
+(add `write:packages` only if you want to `mvn deploy` a library from the machine). Two
+things that regularly go wrong here:
+
+- **Fine-grained tokens do not work** with the GitHub Packages Maven registry — it must be
+  a classic PAT. A 401 with a correct-looking token is almost always this.
+- The token used by the `gh` CLI is **not** reusable: its scopes (`repo`, `read:org`, …)
+  do not include `read:packages`.
+
+Then create `~/.m2/settings.xml` with servers matching the ids used in the poms
+(`github-org-smart-home` for org libraries, `github-prv` for the personal-account ones,
+and `github` — the `distributionManagement` id in every library pom — for publishing):
 
 ```xml
-<settings>
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
   <servers>
-    <server><id>github-org-smart-home</id><username>USERNAME</username><password>PAT</password></server>
-    <server><id>github-prv</id><username>USERNAME</username><password>PAT</password></server>
-    <server><id>github</id><username>USERNAME</username><password>PAT</password></server>
+    <!-- org libraries: smart-home-sdk, shelly-client -->
+    <server>
+      <id>github-org-smart-home</id>
+      <username>USERNAME</username>
+      <password>CLASSIC_PAT</password>
+    </server>
+    <!-- personal account libraries: cholewa-commons, cholewa-security -->
+    <server>
+      <id>github-prv</id>
+      <username>USERNAME</username>
+      <password>CLASSIC_PAT</password>
+    </server>
+    <!-- distributionManagement id in the library poms — only for local `mvn deploy` -->
+    <server>
+      <id>github</id>
+      <username>USERNAME</username>
+      <password>CLASSIC_PAT</password>
+    </server>
   </servers>
 </settings>
 ```
+
+The same three ids cover every repository in the workspace, so this one file is all that is
+needed. The repository URLs themselves are already declared in each pom
+(`https://maven.pkg.github.com/magikabdul/*` and
+`https://maven.pkg.github.com/smart-home-automation-system/*`) — nothing to add there.
+
+`settings.xml` lives outside every git repo, so the token can stay in plain text; if you
+prefer it encrypted, use `mvn --encrypt-password` with a `~/.m2/settings-security.xml`.
+Maven re-reads the file on every run — no terminal or IDE restart needed.
+
+Verify against any service that uses both libraries:
+
+```
+mvn -f <workspace>/amx-service/pom.xml -U dependency:resolve
+```
+
+It must download `cholewa-commons` and `smart-home-sdk` without a 401.
 
 ### 4a. Shared secrets for skills (`<workspace>/.env`)
 
