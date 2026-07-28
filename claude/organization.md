@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `database-service` | 6005 | Persistence facade for other services |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
-| `shelly-cloud-service` | — | Shelly cloud integration — **unfinished, local-only** (not a git repo, no GitHub repo yet; kept as is for now) |
+| `shelly-cloud-service` | 6008 | Shelly cloud integration — **unfinished, local-only** (not a git repo, no GitHub repo yet; kept as is for now) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
@@ -43,7 +43,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 
 ### Other repositories
 
-- `amx` — AMX/NetLinx sources for the physical control system (not Java).
+- `amx` — AMX/NetLinx sources for the physical control system (not Java). Like
+  `cholewa-commons` and `cholewa-security`, this one lives on the personal `magikabdul`
+  account (`magikabdul/amx-tenczynek`), not in the org — the workspace directory is named
+  `amx`.
 - `web-application` — Angular + Angular Material frontend (desktop-first, responsive).
   Claude has full autonomy here, but every change goes through a feature branch and a PR
   reviewed by the user. Key decisions (details in the repo's `CLAUDE.md`): household-member
@@ -81,10 +84,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. It has since had two feature releases — **1.0.1** (2026-07-23, HAS-131 —
-  select `ExceptionProcessor` by exception hierarchy, not exact class) and **1.1.0**
-  (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`); current
-  latest is **1.1.0**. `cholewa-security` migrated and released as **1.0.0**
+  own migration. It has since had three feature releases — **1.0.1** (2026-07-23, HAS-131 —
+  select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
+  (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`) and **1.2.0**
+  (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500);
+  current latest is **1.2.0**, so far adopted only by `database-service`
+  (`notification-service` and `ai-service` are on 1.1.0). `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
   released as **1.0.0** (2026-07-23, HAS-119) — Java 21 + Jackson 3 (dropped
@@ -93,6 +98,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   during its own migration (HAS-126); the remaining consumers (`amx-service`,
   `boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
   the old SDK (0.1.x) until their own Java 21 migration — this release unblocks them.
+  It has since had one feature release — **1.1.0** (2026-07-28, HAS-136 — `required` on
+  the Eaton configuration models, so the generated models carry `@NotNull` and a consumer
+  can validate the payload with `@Valid` alone); current latest is **1.1.0**, adopted by
+  `database-service`.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
@@ -111,9 +120,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   compatible, whereas Spring AI 2.0.0 targets Boot 4.1 / Spring Framework 7 — so the service
   now calls OpenAI through a reactive Spring AI `ChatClient`. The third service migrated is
   `database-service` — Java 21 / Spring Boot 4.1.0, released **0.2.0** (2026-07-25, HAS-126),
-  deployed and verified on the cluster. It is the **first migrated service that consumes the
-  shared domain models**, so it is also the first consumer of `smart-home-sdk` 1.0.0 (next to
-  `cholewa-commons` 1.1.0); the REST contract it serves to `amx-service` is unchanged, so
+  deployed and verified on the cluster; it has since moved through the Eaton configuration
+  hardening epic (HAS-134) to **0.4.0** (2026-07-28) — unique `(point, gateway)` (HAS-138),
+  400 for an unknown gateway (HAS-135) and request body validation (HAS-136). It is the
+  **first migrated service that consumes the
+  shared domain models**, so it is also the first consumer of `smart-home-sdk` (1.0.0 at the
+  time of the migration, now 1.1.0; `cholewa-commons` 1.1.0 → now 1.2.0); the REST contract
+  it serves to `amx-service` is unchanged, so
   `amx-service` keeps working on the old library versions. Two things surfaced there that
   every following service migration will hit: logbook 4.x needs the optional
   `spring-boot-http-client` module on Boot 4.1 or the context will not start, and the k8s
@@ -130,7 +143,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
-  parent; all released as 1.0.0), and three services — `notification-service`, `ai-service`
+  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.2.0**,
+  `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
+  and three services — `notification-service`, `ai-service`
   and `database-service` — are on the target toolchain. The rest (`amx-service`,
   `boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) are still on
   Java 17 / Spring Boot 4.0.x, and `api-gateway-service` / `service-discovery` on Spring Boot

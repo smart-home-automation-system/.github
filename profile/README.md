@@ -4,8 +4,8 @@ It's a microservice application that controls a smart home.
 
 Spring Boot microservices are using
 
-![Java](https://img.shields.io/badge/java-17-yellow?style=plastic)
-![SpringBoot](https://img.shields.io/badge/SpringBoot-4.0.1-blue?style=plastic)
+![Java](https://img.shields.io/badge/java-21-yellow?style=plastic)
+![SpringBoot](https://img.shields.io/badge/SpringBoot-4.1.0-blue?style=plastic)
 
 SpringBoot services are communicating with home system automations like:
 
@@ -78,6 +78,15 @@ SpringBoot services are communicating with home system automations like:
   ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/boiler-service?style=plastic)
   ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/boiler-service?style=plastic)
   ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/boiler-service?style=plastic)
+
+- __[api-gateway-service](https://github.com/smart-home-automation-system/api-gateway-service)__ (local-port - `6200`) — the only entry point into the cluster
+
+  [![CI](https://github.com/smart-home-automation-system/api-gateway-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/api-gateway-service/actions/workflows/CI.yml)
+  [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=smart-home-automation-system_api-gateway-service&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=smart-home-automation-system_api-gateway-service)
+  ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/api-gateway-service?style=plastic)
+  ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/api-gateway-service?style=plastic)
+  ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/api-gateway-service?style=plastic)
+  ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/api-gateway-service?style=plastic)
 
 ## Libraries
 
