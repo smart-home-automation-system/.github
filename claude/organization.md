@@ -75,9 +75,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 
 - `service-discovery` (Eureka) — will be removed: k8s DNS covers discovery. This implies
   removing the `spring-cloud-starter-netflix-eureka-client` dependency and config from
-  `api-gateway-service`, `boiler-service`, `shelly-cloud-service` and `water-service`,
+  `api-gateway-service`, `boiler-service` and `shelly-cloud-service`,
   and replacing the discovery locator in `api-gateway-service` with explicit static
-  routes using k8s DNS names.
+  routes using k8s DNS names. `water-service` is **done** (HAS-127): its Java 21 migration
+  dropped the Eureka client together with the whole Spring Cloud BOM, because the 2025.1.x
+  release train is built against Boot 4.0.7 and no Boot 4.1 train exists yet — the service
+  used no `DiscoveryClient`, `@LoadBalanced` or `lb://` URIs, so the removal was
+  configuration-only. Expect the same forced choice in every remaining Spring Cloud
+  consumer.
 - `cholewa-security` — stays; possible future use for auth in `api-gateway-service`.
 - **Toolchain migration**: all existing services and libraries move from
   Java 17 / Spring Boot 4.0.1 to Java 21 / Spring Boot 4.1.0. Until a repo is migrated,
@@ -88,7 +93,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
   (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`) and **1.2.0**
   (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500);
-  current latest is **1.2.0**, so far adopted only by `database-service`
+  current latest is **1.2.0**, adopted by `database-service` and `water-service`
   (`notification-service` and `ai-service` are on 1.1.0). `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
@@ -96,18 +101,19 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `jackson-databind`, generated models keep `com.fasterxml.jackson.annotation` only),
   which closed the 4 Dependabot jackson-databind alerts. `database-service` adopted it
   during its own migration (HAS-126); the remaining consumers (`amx-service`,
-  `boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
+  `boiler-service`, `heating-service`, `shelly-cloud-service`) stay on
   the old SDK (0.1.x) until their own Java 21 migration — this release unblocks them.
   It has since had one feature release — **1.1.0** (2026-07-28, HAS-136 — `required` on
   the Eaton configuration models, so the generated models carry `@NotNull` and a consumer
   can validate the payload with `@Valid` alone); current latest is **1.1.0**, adopted by
-  `database-service`.
+  `database-service` and `water-service`.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
-  which closes its 4 Dependabot jackson-databind alerts. Its consumers
-  (`boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
-  the old client (0.0.x) until their own Java 21 migration.
+  which closes its 4 Dependabot jackson-databind alerts. `water-service` is its first
+  consumer on 1.0.0 (adopted during HAS-127); the remaining ones (`boiler-service`,
+  `heating-service`, `shelly-cloud-service`) stay on the old client (0.0.x) until their
+  own Java 21 migration.
   The first **service** migrated is `notification-service` — Java 21 / Spring Boot 4.1.0,
   released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
   `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
@@ -131,9 +137,21 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   every following service migration will hit: logbook 4.x needs the optional
   `spring-boot-http-client` module on Boot 4.1 or the context will not start, and the k8s
   manifest must launch the image with `-jar application.jar` — Boot 4 dropped `layertools`,
-  so the old `JarLauncher` command crashes the pod. The remaining services (`amx-service`,
-  `boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) stay on
-  Java 17 / Spring Boot 4.0.x until their own migration; `api-gateway-service` and
+  so the old `JarLauncher` command crashes the pod (the `Dockerfile` needs
+  `-Djarmode=tools ... extract --layers` for the same reason).
+  The fourth service migrated is `water-service` — Java 21 / Spring Boot 4.1.0, released
+  **0.2.0** (2026-07-29, HAS-127), deployed and verified on the cluster. It is the first
+  migrated service using **both** shared model libraries (`smart-home-sdk` 1.1.0 and
+  `shelly-client` 1.0.0, plus `cholewa-commons` 1.2.0) and the first to drop Eureka. Three
+  things it added to the migration playbook: Boot 4.1 moved the `WebClient`
+  auto-configuration out of `spring-boot-starter-webflux`, so a service building its own
+  `WebClient` needs `spring-boot-starter-webclient` (otherwise there is no autoconfigured
+  `WebClient.Builder` at all); the surefire `includes` added during a migration only match
+  `**/*Test.java`, so a class named `...Tests` silently stops running; and the k8s manifest
+  has to carry the `env` block with the database properties — `water-service` had none, and
+  before the migration a broken `spring.flyway.url` default masked it. The remaining
+  services (`amx-service`, `boiler-service`, `heating-service`, `shelly-cloud-service`)
+  stay on Java 17 / Spring Boot 4.0.x until their own migration; `api-gateway-service` and
   `service-discovery` are a separate case — both still run **Spring Boot 3.5.0 on Java 21**
   (Spring Cloud), and `service-discovery` is being retired anyway.
 
@@ -145,9 +163,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.2.0**,
   `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
-  and three services — `notification-service`, `ai-service`
-  and `database-service` — are on the target toolchain. The rest (`amx-service`,
-  `boiler-service`, `heating-service`, `shelly-cloud-service`, `water-service`) are still on
+  and four services — `notification-service`, `ai-service`,
+  `database-service` and `water-service` — are on the target toolchain. The rest
+  (`amx-service`, `boiler-service`, `heating-service`, `shelly-cloud-service`) are still on
   Java 17 / Spring Boot 4.0.x, and `api-gateway-service` / `service-discovery` on Spring Boot
   3.5.0 / Java 21; all will be migrated (see Pending architecture changes).
 - Libraries are consumed from GitHub Packages: org libraries from
@@ -160,9 +178,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   - Services: `release.yml` — release builds a Docker image pushed to Docker Hub.
   - Libraries: `package.yml` — release publishes the artifact to GitHub Packages.
 - A new microservice mirrors the structure and workflows of `water-service`
-  (the reference service) — use the `new-service` skill from the `smart-home` plugin
-  (`claude-tooling` repo); for libraries, `new-library` with `smart-home-sdk` as the
-  reference.
+  (the reference service — since HAS-127 it is itself on the target toolchain, so its pom,
+  `Dockerfile` and workflows can be copied as they are) — use the `new-service` skill from
+  the `smart-home` plugin (`claude-tooling` repo); for libraries, `new-library` with
+  `smart-home-sdk` as the reference.
 
 ## Working rules for Claude
 
