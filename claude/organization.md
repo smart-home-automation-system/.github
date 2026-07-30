@@ -93,27 +93,27 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
   (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`) and **1.2.0**
   (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500);
-  current latest is **1.2.0**, adopted by `database-service` and `water-service`
-  (`notification-service` and `ai-service` are on 1.1.0). `cholewa-security` migrated and released as **1.0.0**
+  current latest is **1.2.0**, adopted by `database-service`, `water-service` and
+  `heating-service` (`notification-service` and `ai-service` are on 1.1.0). `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
   released as **1.0.0** (2026-07-23, HAS-119) — Java 21 + Jackson 3 (dropped
   `jackson-databind`, generated models keep `com.fasterxml.jackson.annotation` only),
   which closed the 4 Dependabot jackson-databind alerts. `database-service` adopted it
   during its own migration (HAS-126); the remaining consumers (`amx-service`,
-  `boiler-service`, `heating-service`, `shelly-cloud-service`) stay on
+  `boiler-service`, `shelly-cloud-service`) stay on
   the old SDK (0.1.x) until their own Java 21 migration — this release unblocks them.
   It has since had one feature release — **1.1.0** (2026-07-28, HAS-136 — `required` on
   the Eaton configuration models, so the generated models carry `@NotNull` and a consumer
   can validate the payload with `@Valid` alone); current latest is **1.1.0**, adopted by
-  `database-service` and `water-service`.
+  `database-service`, `water-service` and `heating-service`.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
   which closes its 4 Dependabot jackson-databind alerts. `water-service` is its first
-  consumer on 1.0.0 (adopted during HAS-127); the remaining ones (`boiler-service`,
-  `heating-service`, `shelly-cloud-service`) stay on the old client (0.0.x) until their
-  own Java 21 migration.
+  consumer on 1.0.0 (adopted during HAS-127), `heating-service` the second (HAS-123); the
+  remaining ones (`boiler-service`, `shelly-cloud-service`) stay on the old client (0.0.x)
+  until their own Java 21 migration.
   The first **service** migrated is `notification-service` — Java 21 / Spring Boot 4.1.0,
   released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
   `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
@@ -149,15 +149,30 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `WebClient.Builder` at all); the surefire `includes` added during a migration only match
   `**/*Test.java`, so a class named `...Tests` silently stops running; and the k8s manifest
   has to carry the `env` block with the database properties — `water-service` had none, and
-  before the migration a broken `spring.flyway.url` default masked it. `heating-service` is
-  in migration as HAS-123 and, once merged, is the **reference for every remaining service
-  migration** — it is the first repo carrying the full target shape end to end: pom
-  (Boot 4.1 / Java 21, `spring-boot-http-client`, `spring-boot-starter-webclient`, explicit
-  `annotationProcessorPaths`), `Dockerfile` (`-Djarmode=tools ... extract --layers`,
+  before the migration a broken `spring.flyway.url` default masked it. The fifth service
+  migrated is `heating-service` — Java 21 / Spring Boot 4.1.0, released **1.1.0**
+  (2026-07-30, HAS-123), deployed and verified on the cluster, and it is the **reference for
+  every remaining service migration**: the first repo carrying the full target shape end to
+  end — pom (Boot 4.1 / Java 21, `spring-boot-http-client`, `spring-boot-starter-webclient`,
+  explicit `annotationProcessorPaths`), `Dockerfile` (`-Djarmode=tools ... extract --layers`,
   `EXPOSE 6200 8200`), SHA-pinned workflows with the Sonar quality gate, the `database.*`
   configuration group with `DatabaseProperties` instead of `spring.datasource.*`, and a k8s
   manifest with the launch command, resource limits, readiness/liveness probes and the
   RabbitMQ secret wired in. Use `water-service` only as the scaffold for **new** services.
+  It added four more things to the playbook. Mockito 5.23 (managed by Boot 4.1.0) refuses to
+  mock sealed types, so `Answers.RETURNS_SMART_NULLS` on a `java.time.Clock` mock now fails —
+  the smart null for `getZone()` would be a mock of the sealed `ZoneId`. A `@RabbitListener`
+  returning `Mono` needs `spring.rabbitmq.listener.simple.acknowledge-mode: manual`: with the
+  default AUTO the container acks before the reactive pipeline runs, so prefetch throttles
+  nothing and the ack is sent twice. A hand-built `ConnectionFactory` is **not** pooled —
+  `R2dbcAutoConfiguration` backs off once such a bean exists — so it has to be wrapped in
+  `io.r2dbc.pool.ConnectionPool` with a bounded `maxSize` and declared as
+  `@Bean(destroyMethod = "dispose")`; the managed database allows 22 backend connections in
+  total, today split heating 8 / database 6 / water 4. And a deployment that has fallen far
+  behind can cross a rewritten Flyway migration — `heating-service` jumped from 0.2.1 (2024)
+  to 1.1.0, where `V1` no longer creates the same table, so the legacy database refused
+  validation; the fix was its own database (`home-automation-heating`), not `flyway repair`,
+  which would have marked `V1` applied without creating the table.
   The remaining services (`amx-service`, `boiler-service`, `shelly-cloud-service`)
   stay on Java 17 / Spring Boot 4.0.x until their own migration; `api-gateway-service` and
   `service-discovery` are a separate case — both still run **Spring Boot 3.5.0 on Java 21**
@@ -171,9 +186,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.2.0**,
   `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
-  and four services — `notification-service`, `ai-service`,
-  `database-service` and `water-service` — are on the target toolchain. The rest
-  (`amx-service`, `boiler-service`, `heating-service`, `shelly-cloud-service`) are still on
+  and five services — `notification-service`, `ai-service`, `database-service`,
+  `water-service` and `heating-service` — are on the target toolchain. The rest
+  (`amx-service`, `boiler-service`, `shelly-cloud-service`) are still on
   Java 17 / Spring Boot 4.0.x, and `api-gateway-service` / `service-discovery` on Spring Boot
   3.5.0 / Java 21; all will be migrated (see Pending architecture changes).
 - **Ports**: in the cluster every service listens on **6200** (application) and exposes
@@ -182,7 +197,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `livenessProbe` in the manifest target 8200 (`/actuator/health/{readiness,liveness}`),
   and the `Dockerfile` declares `EXPOSE 6200 8200`. Locally each service keeps its own pair
   from the table above: **600x** for the application and **800x** for Actuator, set in the
-  `local` profile. `heating-service` (HAS-123) is the first service on this scheme; the
+  `local` profile. `heating-service` (HAS-123, released 1.1.0) is the first service running
+  on this scheme in the cluster and the first with probes — it also pins
+  `management.endpoint.health.probes.enabled: true` instead of relying on Boot detecting the
+  Kubernetes platform, because a 404 on the readiness path would crash-loop the pod. The
   others still set `management.server.port` only in the `local` profile — in the cluster
   their Actuator shares 6200 and their manifests have no probes. They adopt the scheme
   during their own Java 21 migration.
