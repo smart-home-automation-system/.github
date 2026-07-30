@@ -149,8 +149,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `WebClient.Builder` at all); the surefire `includes` added during a migration only match
   `**/*Test.java`, so a class named `...Tests` silently stops running; and the k8s manifest
   has to carry the `env` block with the database properties — `water-service` had none, and
-  before the migration a broken `spring.flyway.url` default masked it. The remaining
-  services (`amx-service`, `boiler-service`, `heating-service`, `shelly-cloud-service`)
+  before the migration a broken `spring.flyway.url` default masked it. `heating-service` is
+  in migration as HAS-123 and, once merged, is the **reference for every remaining service
+  migration** — it is the first repo carrying the full target shape end to end: pom
+  (Boot 4.1 / Java 21, `spring-boot-http-client`, `spring-boot-starter-webclient`, explicit
+  `annotationProcessorPaths`), `Dockerfile` (`-Djarmode=tools ... extract --layers`,
+  `EXPOSE 6200 8200`), SHA-pinned workflows with the Sonar quality gate, the `database.*`
+  configuration group with `DatabaseProperties` instead of `spring.datasource.*`, and a k8s
+  manifest with the launch command, resource limits, readiness/liveness probes and the
+  RabbitMQ secret wired in. Use `water-service` only as the scaffold for **new** services.
+  The remaining services (`amx-service`, `boiler-service`, `shelly-cloud-service`)
   stay on Java 17 / Spring Boot 4.0.x until their own migration; `api-gateway-service` and
   `service-discovery` are a separate case — both still run **Spring Boot 3.5.0 on Java 21**
   (Spring Cloud), and `service-discovery` is being retired anyway.
@@ -168,6 +176,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (`amx-service`, `boiler-service`, `heating-service`, `shelly-cloud-service`) are still on
   Java 17 / Spring Boot 4.0.x, and `api-gateway-service` / `service-discovery` on Spring Boot
   3.5.0 / Java 21; all will be migrated (see Pending architecture changes).
+- **Ports**: in the cluster every service listens on **6200** (application) and exposes
+  Actuator on **8200** (`management.server.port` in the `home` profile) — the k8s ingress
+  routes only 6200, so Actuator is unreachable from outside; `readinessProbe` /
+  `livenessProbe` in the manifest target 8200 (`/actuator/health/{readiness,liveness}`),
+  and the `Dockerfile` declares `EXPOSE 6200 8200`. Locally each service keeps its own pair
+  from the table above: **600x** for the application and **800x** for Actuator, set in the
+  `local` profile. `heating-service` (HAS-123) is the first service on this scheme; the
+  others still set `management.server.port` only in the `local` profile — in the cluster
+  their Actuator shares 6200 and their manifests have no probes. They adopt the scheme
+  during their own Java 21 migration.
 - Libraries are consumed from GitHub Packages: org libraries from
   `maven.pkg.github.com/smart-home-automation-system/*`, the personal-account libraries
   (`cholewa-commons`, `cholewa-security`) from `maven.pkg.github.com/magikabdul/*` —
