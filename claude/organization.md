@@ -235,6 +235,52 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   others still set `management.server.port` only in the `local` profile — in the cluster
   their Actuator shares 6200 and their manifests have no probes. They adopt the scheme
   during their own Java 21 migration.
+- **Observability** (epic HAS-155, Grafana stack): every service exposes
+  `health,info,prometheus` on the management port and carries the
+  `prometheus.io/scrape|port|path` annotations on its Deployment pod template — Prometheus
+  discovers pods by annotation, so nothing on the Prometheus side changes per service.
+  Cluster logs are JSON via `logging.structured.format.console: logstash`. That property
+  belongs in the **shared** document with an empty-value override in `local`, not in a
+  `home`-only document: locally the services run with `home,local` together, so a `home`
+  document would apply there as well. Boot installs the structured encoder only when the
+  value has length (`DefaultLogbackConfiguration.createEncoder`), so `console: ""` in the
+  `local` document restores plain text. `heating-service` (HAS-160, released 1.2.0) is the
+  first service on this scheme; note that `micrometer-registry-prometheus` was already on
+  its classpath, while `water-service`, `boiler-service` and `api-gateway-service` do not
+  have it — for them the same task is not configuration-only.
+- **Request tracing**: Micrometer Tracing with the Brave bridge
+  (`spring-boot-micrometer-tracing-brave` + `io.micrometer:micrometer-tracing-bridge-brave`),
+  **without any exporter** — no Tempo or Zipkin in the stack. The trace lives in the logs:
+  `traceId` / `spanId` land in the MDC, and Boot's logstash formatter writes the whole MDC
+  map as top-level JSON fields (`LogstashStructuredLogFormatter` — `pairs.addMapEntries`),
+  so one request is followed across services with
+  `{namespace="smart-home"} | json | traceId = "…"`. Three settings this needs, all of them
+  non-obvious defaults: `spring.reactor.context-propagation: auto` (the default `LIMITED`
+  restores ThreadLocals only in `tap` and `handle`, so a log statement inside a reactive
+  chain has no `traceId`), `spring.rabbitmq.template.observation-enabled` **and**
+  `spring.rabbitmq.listener.simple.observation-enabled` (both default `false` — without them
+  the trace breaks at the queue), and `management.tracing.sampling.probability: 1.0` (default
+  0.1; the traffic is tiny and a partial trace is worthless when logs are the only record).
+  A `WebClient` must be built from the injected `WebClient.Builder` or it is not
+  instrumented. `heating-service` is the first service with tracing; the remaining ones
+  adopt it together with their observability task.
+- **Logging volume — conscious decision (2026-08)**: logbook stays at
+  `logging.level.org.zalando.logbook: trace` in the cluster with full request and response
+  bodies. Full information is worth more than the storage, so **do not propose trimming it
+  in reviews**. Should it ever need trimming, the level is the wrong knob —
+  `DefaultHttpLogWriter` logs at TRACE and its `isActive()` checks `isTraceEnabled()`, so
+  `info` disables logbook completely. Use logbook's own settings instead:
+  `logbook.strategy: body-only-if-status-at-least` (keeps a line per request/response, bodies
+  only for errors; other values are `status-at-least` and `without-body`),
+  `logbook.write.max-body-size` and `logbook.exclude`. The known risk of the current setting:
+  the CRI runtime splits log lines at 16 KB, and a split line stops parsing under Loki's
+  `| json`.
+  Logbook's own JSON ends up escaped inside the `message` field, because two JSON layers are
+  stacked — read it in Grafana with a re-parse:
+  `… | json | line_format "{{.message}}" | json`. Getting rid of the escaping for good would
+  mean dropping Boot's native structured logging for `net.logstash.logback` plus
+  `org.zalando:logbook-logstash` (which also drags `jackson-databind` back in) — deliberately
+  not done.
 - Libraries are consumed from GitHub Packages: org libraries from
   `maven.pkg.github.com/smart-home-automation-system/*`, the personal-account libraries
   (`cholewa-commons`, `cholewa-security`) from `maven.pkg.github.com/magikabdul/*` —
