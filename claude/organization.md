@@ -263,7 +263,18 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   0.1; the traffic is tiny and a partial trace is worthless when logs are the only record).
   A `WebClient` must be built from the injected `WebClient.Builder` or it is not
   instrumented. `heating-service` is the first service with tracing; the remaining ones
-  adopt it together with their observability task.
+  adopt it together with their observability task — **tracing is part of those tasks, not a
+  separate one**.
+  One trap costs a whole trace and was diagnosed the hard way in `heating-service`: a
+  `@RabbitListener` returning `Mono` keeps `traceId` only on the container thread. At
+  subscribe the listener observation is on the thread and the MDC is set, but the reactor
+  context is empty (`hasObservationKey=false, keys=[]`) — Spring AMQP subscribes in a way
+  that does not trigger the automatic ThreadLocal capture and, unlike the HTTP path, never
+  writes the observation into the context itself (`HttpWebHandlerAdapter:401` does, which is
+  why controllers need nothing). Everything the message triggers is then logged without a
+  `traceId`. The fix is `.contextCapture()` as the last operator of the listener chain.
+  Logbook's own lines never carry `traceId` regardless — the netty handler writes outside the
+  reactor chain, so that would need a custom `HttpLogWriter`.
 - **Logging volume — conscious decision (2026-08)**: logbook stays at
   `logging.level.org.zalando.logbook: trace` in the cluster with full request and response
   bodies. Full information is worth more than the storage, so **do not propose trimming it
