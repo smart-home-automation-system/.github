@@ -251,6 +251,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `health,info,prometheus` on the management port and carries the
   `prometheus.io/scrape|port|path` annotations on its Deployment pod template — Prometheus
   discovers pods by annotation, so nothing on the Prometheus side changes per service.
+  Dashboards are provisioned from ConfigMaps in `deployment-tools`
+  (`k8s/monitoring/grafana/dashboards/`, HAS-166) — the service identity label there is
+  **`app`** (relabelled from the pod label `name`), not the Micrometer `application` tag,
+  which no service sets; in Loki it is `app` as well, and the logs parse with `| json`.
+  A community dashboard assuming other names renders empty panels rather than failing.
   Cluster logs are JSON via `logging.structured.format.console: logstash`. That property
   belongs in the **shared** document with an empty-value override in `local`, not in a
   `home`-only document: locally the services run with `home,local` together, so a `home`
