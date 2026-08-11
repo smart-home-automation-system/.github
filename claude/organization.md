@@ -228,13 +228,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   on this scheme in the cluster and the first with probes — it also pins
   `management.endpoint.health.probes.enabled: true` instead of relying on Boot detecting the
   Kubernetes platform, because a 404 on the readiness path would crash-loop the pod;
-  `boiler-service` (HAS-128, released 1.1.0) is the second. Note that this pin belongs in
+  `boiler-service` (HAS-128, released 1.1.0) is the second and `water-service` (HAS-162,
+  released 0.3.0) the third — that one had no Actuator at all until its observability task,
+  which is why its manifest carried the probes commented out. Note that this pin belongs in
   the shared (default) document of `application.yaml`, not in the `home` section — kept
   there, the probe paths can be exercised locally on 80xx before the manifest ever reaches
   the cluster. The
   others still set `management.server.port` only in the `local` profile — in the cluster
   their Actuator shares 6200 and their manifests have no probes. They adopt the scheme
-  during their own Java 21 migration.
+  during their own Java 21 migration, or during their observability task when the migration
+  is already behind them.
 - **Observability** (epic HAS-155, Grafana stack): every service exposes
   `health,info,prometheus` on the management port and carries the
   `prometheus.io/scrape|port|path` annotations on its Deployment pod template — Prometheus
@@ -245,10 +248,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   document would apply there as well. Boot installs the structured encoder only when the
   value has length (`DefaultLogbackConfiguration.createEncoder`), so `console: ""` in the
   `local` document restores plain text. `heating-service` (HAS-160, released 1.2.0) is the
-  first service on this scheme and `boiler-service` (HAS-161, released 1.2.0) the second;
-  note that `micrometer-registry-prometheus` was already on the heating classpath, while
-  `water-service` and `api-gateway-service` do not have it — for them, as for
-  `boiler-service`, the same task is not configuration-only.
+  first service on this scheme, `boiler-service` (HAS-161, released 1.2.0) the second and
+  `water-service` (HAS-162, released 0.3.0) the third; note that
+  `micrometer-registry-prometheus` was already on the heating classpath, while the others
+  have to add it — `water-service` needed `spring-boot-starter-actuator` itself, so for a
+  service without Actuator the task also brings the 6200/8200 scheme and the probes.
 - **Request tracing**: Micrometer Tracing with the Brave bridge
   (`spring-boot-micrometer-tracing-brave` + `io.micrometer:micrometer-tracing-bridge-brave`),
   **without any exporter** — no Tempo or Zipkin in the stack. The trace lives in the logs:
@@ -263,13 +267,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   the trace breaks at the queue), and `management.tracing.sampling.probability: 1.0` (default
   0.1; the traffic is tiny and a partial trace is worthless when logs are the only record).
   A `WebClient` must be built from the injected `WebClient.Builder` or it is not
-  instrumented. `heating-service` is the first service with tracing and `boiler-service` the
-  second; the remaining ones adopt it together with their observability task — **tracing is
-  part of those tasks, not a separate one**.
-  A `@Scheduled` method needs nothing extra: Spring opens an observation around the task, so
-  a whole scheduled pass shares one `traceId` — verified in `boiler-service`, where the
-  status loop, both service calls and every device command land under the same id, and the
-  `traceparent` header carries it into `heating-service`.
+  instrumented. `heating-service` is the first service with tracing, `boiler-service` the
+  second and `water-service` the third; the remaining ones adopt it together with their
+  observability task — **tracing is part of those tasks, not a separate one**.
+  A `@Scheduled` method needs nothing extra: Spring opens an observation around the task and
+  writes it into the reactor context before subscribing
+  (`ScheduledAnnotationReactiveSupport$SubscribingRunnable`), so a whole scheduled pass
+  shares one `traceId` — verified in `boiler-service`, where the status loop, both service
+  calls and every device command land under the same id and the `traceparent` header carries
+  it into `heating-service`, and again in `water-service`, where the sensor read and the
+  database write share one.
   One trap costs a whole trace and was diagnosed the hard way in `heating-service`: a
   `@RabbitListener` returning `Mono` keeps `traceId` only on the container thread. At
   subscribe the listener observation is on the thread and the MDC is set, but the reactor
