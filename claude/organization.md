@@ -233,9 +233,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `management.endpoint.health.probes.enabled: true` instead of relying on Boot detecting the
   Kubernetes platform, because a 404 on the readiness path would crash-loop the pod;
   `boiler-service` (HAS-128, released 1.1.0) is the second, `water-service` (HAS-162,
-  released 0.3.0) the third and `database-service` (HAS-163, released 0.5.0) the fourth —
-  neither of those two had an Actuator at all until its observability task, which is why
-  their manifests carried the probes commented out. Note that this pin belongs in
+  released 0.3.0) the third, `database-service` (HAS-163, released 0.5.0) the fourth and
+  `notification-service` (HAS-164, released 0.2.0) the fifth — none of those three had an
+  Actuator at all until its observability task, which is why their manifests carried the
+  probes commented out. Note that this pin belongs in
   the shared (default) document of `application.yaml`, not in the `home` section — kept
   there, the probe paths can be exercised locally on 80xx before the manifest ever reaches
   the cluster. The
@@ -254,12 +255,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   value has length (`DefaultLogbackConfiguration.createEncoder`), so `console: ""` in the
   `local` document restores plain text. `heating-service` (HAS-160, released 1.2.0) is the
   first service on this scheme, `boiler-service` (HAS-161, released 1.2.0) the second,
-  `water-service` (HAS-162, released 0.3.0) the third and `database-service` (HAS-163,
-  released 0.5.0) the fourth; note that `micrometer-registry-prometheus` was already on the
-  heating classpath, while the others have to add it — and for `water-service` and
-  `database-service` the missing piece was `spring-boot-starter-actuator` itself (the latter
-  had the registry in its pom all along, dead without the starter), so for a service without
-  Actuator the task also brings the 6200/8200 scheme and the probes.
+  `water-service` (HAS-162, released 0.3.0) the third, `database-service` (HAS-163,
+  released 0.5.0) the fourth and `notification-service` (HAS-164, released 0.2.0) the fifth;
+  note that `micrometer-registry-prometheus` was already on the heating classpath, while the
+  others have to add it — and for `water-service`, `database-service` and
+  `notification-service` the missing piece was `spring-boot-starter-actuator` itself (the
+  last two had the registry in their poms all along, dead without the starter), so for a
+  service without Actuator the task also brings the 6200/8200 scheme and the probes.
 - **Request tracing**: Micrometer Tracing with the Brave bridge
   (`spring-boot-micrometer-tracing-brave` + `io.micrometer:micrometer-tracing-bridge-brave`),
   **without any exporter** — no Tempo or Zipkin in the stack. The trace lives in the logs:
@@ -275,10 +277,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   0.1; the traffic is tiny and a partial trace is worthless when logs are the only record).
   A `WebClient` must be built from the injected `WebClient.Builder` or it is not
   instrumented. `heating-service` is the first service with tracing, `boiler-service` the
-  second, `water-service` the third and `database-service` the fourth — that one is mostly
+  second, `water-service` the third, `database-service` the fourth — that one is mostly
   the receiving end, so a caller's `traceId` now continues into the persistence logs instead
-  of stopping at the REST boundary; the remaining ones adopt it together with their
-  observability task — **tracing is part of those tasks, not a separate one**.
+  of stopping at the REST boundary — and `notification-service` the fifth, the first
+  RabbitMQ **consumer** of the epic, where the `.contextCapture()` fix below was needed for
+  real (`acknowledge-mode` was not: `AbstractMessageListenerContainer` forces MANUAL by
+  itself for a listener returning an async reply, so only `heating-service`, which also
+  wanted prefetch throttling, sets it explicitly); the remaining ones adopt it together with
+  their observability task — **tracing is part of those tasks, not a separate one**.
   A `@Scheduled` method needs nothing extra: Spring opens an observation around the task and
   writes it into the reactor context before subscribing
   (`ScheduledAnnotationReactiveSupport$SubscribingRunnable`), so a whole scheduled pass
