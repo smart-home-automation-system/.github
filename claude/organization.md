@@ -245,9 +245,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   document would apply there as well. Boot installs the structured encoder only when the
   value has length (`DefaultLogbackConfiguration.createEncoder`), so `console: ""` in the
   `local` document restores plain text. `heating-service` (HAS-160, released 1.2.0) is the
-  first service on this scheme; note that `micrometer-registry-prometheus` was already on
-  its classpath, while `water-service`, `boiler-service` and `api-gateway-service` do not
-  have it — for them the same task is not configuration-only.
+  first service on this scheme and `boiler-service` (HAS-161, released 1.2.0) the second;
+  note that `micrometer-registry-prometheus` was already on the heating classpath, while
+  `water-service` and `api-gateway-service` do not have it — for them, as for
+  `boiler-service`, the same task is not configuration-only.
 - **Request tracing**: Micrometer Tracing with the Brave bridge
   (`spring-boot-micrometer-tracing-brave` + `io.micrometer:micrometer-tracing-bridge-brave`),
   **without any exporter** — no Tempo or Zipkin in the stack. The trace lives in the logs:
@@ -262,9 +263,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   the trace breaks at the queue), and `management.tracing.sampling.probability: 1.0` (default
   0.1; the traffic is tiny and a partial trace is worthless when logs are the only record).
   A `WebClient` must be built from the injected `WebClient.Builder` or it is not
-  instrumented. `heating-service` is the first service with tracing; the remaining ones
-  adopt it together with their observability task — **tracing is part of those tasks, not a
-  separate one**.
+  instrumented. `heating-service` is the first service with tracing and `boiler-service` the
+  second; the remaining ones adopt it together with their observability task — **tracing is
+  part of those tasks, not a separate one**.
+  A `@Scheduled` method needs nothing extra: Spring opens an observation around the task, so
+  a whole scheduled pass shares one `traceId` — verified in `boiler-service`, where the
+  status loop, both service calls and every device command land under the same id, and the
+  `traceparent` header carries it into `heating-service`.
   One trap costs a whole trace and was diagnosed the hard way in `heating-service`: a
   `@RabbitListener` returning `Mono` keeps `traceId` only on the container thread. At
   subscribe the listener observation is on the thread and the MDC is set, but the reactor
