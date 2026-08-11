@@ -175,7 +175,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `R2dbcAutoConfiguration` backs off once such a bean exists — so it has to be wrapped in
   `io.r2dbc.pool.ConnectionPool` with a bounded `maxSize` and declared as
   `@Bean(destroyMethod = "dispose")`; the managed database allows 22 backend connections in
-  total, today split heating 8 / database 6 / water 4. And a deployment that has fallen far
+  total, today split heating 8 / database 6 / water 4. `database-service` got its pool in
+  HAS-163 (released 0.5.1) — the missing pool only became visible when Actuator arrived,
+  because `ConnectionFactoryHealthIndicator` answered every `/actuator/health` call with a
+  fresh physical connection; `r2dbc_pool_*` on `/actuator/prometheus` now makes the budget
+  observable per service. And a deployment that has fallen far
   behind can cross a rewritten Flyway migration — `heating-service` jumped from 0.2.1 (2024)
   to 1.1.0, where `V1` no longer creates the same table, so the legacy database refused
   validation; the fix was its own database (`home-automation-heating`), not `flyway repair`,
