@@ -234,9 +234,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   Kubernetes platform, because a 404 on the readiness path would crash-loop the pod;
   `boiler-service` (HAS-128, released 1.1.0) is the second, `water-service` (HAS-162,
   released 0.3.0) the third, `database-service` (HAS-163, released 0.5.0) the fourth and
-  `notification-service` (HAS-164, released 0.2.0) the fifth — none of those three had an
-  Actuator at all until its observability task, which is why their manifests carried the
-  probes commented out. Note that this pin belongs in
+  `notification-service` (HAS-164, released 0.2.0) the fifth and `ai-service` (HAS-165,
+  released 0.2.0) the sixth — none of those four had an Actuator at all until its
+  observability task, which is why their manifests carried the probes commented out. With
+  `ai-service` every service in the `smart-home` namespace is on the scheme; only
+  `api-gateway-service` (still Spring Boot 3.5.0) and the retiring `service-discovery` are
+  left outside it. Note that this pin belongs in
   the shared (default) document of `application.yaml`, not in the `home` section — kept
   there, the probe paths can be exercised locally on 80xx before the manifest ever reaches
   the cluster. The
@@ -256,12 +259,19 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `local` document restores plain text. `heating-service` (HAS-160, released 1.2.0) is the
   first service on this scheme, `boiler-service` (HAS-161, released 1.2.0) the second,
   `water-service` (HAS-162, released 0.3.0) the third, `database-service` (HAS-163,
-  released 0.5.0) the fourth and `notification-service` (HAS-164, released 0.2.0) the fifth;
+  released 0.5.0) the fourth, `notification-service` (HAS-164, released 0.2.0) the fifth and
+  `ai-service` (HAS-165, released 0.2.0) the sixth and last;
   note that `micrometer-registry-prometheus` was already on the heating classpath, while the
-  others have to add it — and for `water-service`, `database-service` and
-  `notification-service` the missing piece was `spring-boot-starter-actuator` itself (the
-  last two had the registry in their poms all along, dead without the starter), so for a
-  service without Actuator the task also brings the 6200/8200 scheme and the probes.
+  others have to add it — and for `water-service`, `database-service`,
+  `notification-service` and `ai-service` the missing piece was
+  `spring-boot-starter-actuator` itself (the last three had the registry in their poms all
+  along, dead without the starter), so for a service without Actuator the task also brings
+  the 6200/8200 scheme and the probes. One thing `ai-service` added: switching the cluster
+  logs to JSON turns anything a service echoes from an upstream error into stored, searchable
+  text — there the OpenAI error message quotes the rejected API key back, so the provider
+  failure is now mapped to a fixed 502 message and only the exception type is logged. Worth
+  a look wherever `DefaultExceptionProcessor` still passes an upstream message through as
+  `details`.
 - **Request tracing**: Micrometer Tracing with the Brave bridge
   (`spring-boot-micrometer-tracing-brave` + `io.micrometer:micrometer-tracing-bridge-brave`),
   **without any exporter** — no Tempo or Zipkin in the stack. The trace lives in the logs:
@@ -283,8 +293,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   RabbitMQ **consumer** of the epic, where the `.contextCapture()` fix below was needed for
   real (`acknowledge-mode` was not: `AbstractMessageListenerContainer` forces MANUAL by
   itself for a listener returning an async reply, so only `heating-service`, which also
-  wanted prefetch throttling, sets it explicitly); the remaining ones adopt it together with
-  their observability task — **tracing is part of those tasks, not a separate one**.
+  wanted prefetch throttling, sets it explicitly) — and `ai-service` the sixth, where the
+  `ChatClient` built from the injected `ChatClient.Builder` puts Spring AI's own observations
+  under the trace of the request that triggered the call; the remaining ones adopt it
+  together with their observability task — **tracing is part of those tasks, not a separate one**.
   A `@Scheduled` method needs nothing extra: Spring opens an observation around the task and
   writes it into the reactor context before subscribing
   (`ScheduledAnnotationReactiveSupport$SubscribingRunnable`), so a whole scheduled pass
