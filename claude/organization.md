@@ -12,7 +12,6 @@ except `deployment-tools`.
 
 | Repository | Local port | Purpose |
 |---|---|---|
-| `service-discovery` | 6000 | Eureka server |
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside (k8s ingress routes here) |
 | `amx-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) |
 | `heating-service` | 6002 | Heating control |
@@ -67,16 +66,18 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 
 - Reactive stack everywhere: Spring WebFlux, no blocking calls in service code.
 - Async messaging via RabbitMQ: `amx-service`, `heating-service`, `notification-service`.
-- Service discovery: Kubernetes-native (k8s Services + DNS). Eureka
-  (`service-discovery`) is being phased out — see Pending architecture changes.
+- Service discovery: Kubernetes-native (k8s Services + DNS). Eureka is gone —
+  `service-discovery` was archived and removed from the cluster on 2026-08-13.
 - External traffic: k8s → `api-gateway-service` → internal services.
 
 ## Pending architecture changes (decided 2026-07, executed by the user)
 
-- `service-discovery` (Eureka) — will be removed: k8s DNS covers discovery. This implies
-  removing the `spring-cloud-starter-netflix-eureka-client` dependency and config from
-  `api-gateway-service` — `shelly-cloud-service` dropped it in HAS-129, so the gateway is
-  the last consumer —
+- `service-discovery` (Eureka) — **done**: archived on GitHub and deleted from the cluster
+  on 2026-08-13, k8s DNS covers discovery. What is left is on the `api-gateway-service`
+  side, and it is no longer cosmetic: the gateway still runs the
+  `spring-cloud-starter-netflix-eureka-client` against a server that no longer exists, so it
+  logs a failed heartbeat every 30 s and its discovery locator resolves nothing. It needs the
+  client and config removed
   and replacing the discovery locator in `api-gateway-service` with explicit static
   routes using k8s DNS names. `water-service` is **done** (HAS-127): its Java 21 migration
   dropped the Eureka client together with the whole Spring Cloud BOM, because the 2025.1.x
@@ -247,9 +248,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   there would have overwritten the running boiler tags; check the image name, the Discord
   titles and the README whenever a repo starts as a copy. And its Spring Cloud BOM could not
   be bumped at all, only dropped, which is now the rule rather than the exception: no release
-  train targets Boot 4.1. With it **every service is migrated**; `api-gateway-service` and
-  `service-discovery` are a separate case — both still run **Spring Boot 3.5.0 on Java 21**
-  (Spring Cloud), and `service-discovery` is being retired anyway.
+  train targets Boot 4.1. With it **every service is migrated**; `api-gateway-service` is the
+  only one left, still on **Spring Boot 3.5.0 / Java 21** (Spring Cloud).
 
 ## Conventions
 
@@ -261,9 +261,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all eight services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service` and
-  `shelly-cloud-service` — are on the target toolchain. Only `api-gateway-service` and
-  `service-discovery` are left on Spring Boot
-  3.5.0 / Java 21; both will be migrated (see Pending architecture changes).
+  `shelly-cloud-service` — are on the target toolchain. Only `api-gateway-service` is left,
+  on Spring Boot 3.5.0 / Java 21 (see Pending architecture changes).
 - **Ports**: in the cluster every service listens on **6200** (application) and exposes
   Actuator on **8200** (`management.server.port` in the `home` profile) — the k8s ingress
   routes only 6200, so Actuator is unreachable from outside; `readinessProbe` /
@@ -283,8 +282,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (`amx-service` also had a stray `EXPOSE 6200 9200` matching no scheme). With
   `amx-service` — and `shelly-cloud-service` (HAS-129), which was born on it — every service
   in the `smart-home` namespace is on the scheme; only
-  `api-gateway-service` (still Spring Boot 3.5.0) and the retiring `service-discovery` are
-  left outside it. Note that this pin belongs in
+  `api-gateway-service` (still Spring Boot 3.5.0) is left outside it. Note that this pin belongs in
   the shared (default) document of `application.yaml`, not in the `home` section — kept
   there, the probe paths can be exercised locally on 80xx before the manifest ever reaches
   the cluster. The
