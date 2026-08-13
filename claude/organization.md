@@ -21,6 +21,7 @@ except `deployment-tools`.
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
+| `presence-service` | 6009 | Household presence monitoring — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints, no persistence and makes no UniFi calls yet. Created 2026-08-13 as the entry task of epic HAS-147 (HAS-148) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
@@ -29,7 +30,7 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 
 | Library | Purpose | Current consumers |
 |---|---|---|
-| `cholewa-commons` | Common utilities | ai, amx, api-gateway, boiler, database, heating, notification, shelly-cloud, water |
+| `cholewa-commons` | Common utilities | ai, amx, api-gateway, boiler, database, heating, notification, presence, shelly-cloud, water |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
 | `smart-home-sdk` | Shared domain / API models | amx, boiler, database, heating, shelly-cloud, water |
 | `shelly-client` | REST client for Shelly devices | boiler, heating, shelly-cloud, water |
@@ -277,11 +278,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.3.1**,
   `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
-  and **all eight services** — `notification-service`, `ai-service`, `database-service`,
-  `water-service`, `heating-service`, `boiler-service`, `amx-service` and
-  `shelly-cloud-service` — plus `api-gateway-service` are on the target toolchain; nothing is
-  left behind (the gateway pins its Spring Cloud starter by hand, see Pending architecture
-  changes).
+  and **all nine services** — `notification-service`, `ai-service`, `database-service`,
+  `water-service`, `heating-service`, `boiler-service`, `amx-service`,
+  `shelly-cloud-service` and `presence-service` — plus `api-gateway-service` are on the
+  target toolchain; nothing is left behind (the gateway pins its Spring Cloud starter by
+  hand, see Pending architecture changes; `presence-service` was never migrated — it was
+  scaffolded on the target versions in HAS-148).
 - **Ports**: in the cluster every service listens on **6200** (application) and exposes
   Actuator on **8200** (`management.server.port` in the `home` profile) — the k8s ingress
   routes only 6200, so Actuator is unreachable from outside; `readinessProbe` /
