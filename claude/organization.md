@@ -12,7 +12,7 @@ except `deployment-tools`.
 
 | Repository | Local port | Purpose |
 |---|---|---|
-| `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside (k8s ingress routes here) |
+| `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside: the ingress forwards all of `/home` here and static routes fan out to the services over k8s DNS (HAS-171) |
 | `amx-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) |
 | `heating-service` | 6002 | Heating control |
 | `notification-service` | 6003 | Notifications (Discord bot) |
@@ -68,7 +68,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - Async messaging via RabbitMQ: `amx-service`, `heating-service`, `notification-service`.
 - Service discovery: Kubernetes-native (k8s Services + DNS). Eureka is gone —
   `service-discovery` was archived and removed from the cluster on 2026-08-13.
-- External traffic: k8s → `api-gateway-service` → internal services.
+- External traffic: k8s ingress (`/home`) → `api-gateway-service` → internal services. The routes
+  are static, in `internal.service.*`; two things about them are counter-intuitive and were verified
+  in the gateway sources during HAS-171: `PathRoutePredicateFactory` **prepends**
+  `spring.webflux.base-path` to every pattern and matches the full raw path (so predicates are
+  written without `/home`, but nothing is stripped at runtime), and `RouteToRequestUrlFilter` merges
+  **only scheme, host and port** onto the incoming URI — the path part of a route's `uri(...)` is
+  discarded, so a target mounted elsewhere needs `rewritePath`, not a longer URI string.
+  `notification-service` is deliberately not routed: its `/home/notification/skippy` endpoint has no
+  external consumer.
 
 ## Pending architecture changes (decided 2026-07, executed by the user)
 
@@ -76,22 +84,21 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   on 2026-08-13, k8s DNS covers discovery. The gateway's Eureka client and discovery locator
   went with it in HAS-170 (released 0.1.0), which also ended the failed heartbeat every 30 s
   it had been logging since the server disappeared — the Grafana "Error log spike" alert
-  dropped the `!= DiscoveryClient` filter that existed only to hide that noise. **What is
-  left is HAS-171**: the locator is gone but the static routes that replace it are not written
-  yet, so only the paths the ingress routes directly work from outside.
-  The gateway's own two water routes have never worked — they target `/water/hot` and
-  `/water/management`, paths `water-service` does not expose.
+  dropped the `!= DiscoveryClient` filter that existed only to hide that noise. HAS-171 finished
+  the job (released 0.2.0, 2026-08-13): every service now has an explicit route over k8s DNS,
+  the ingress keeps only `/home` and `/rabbit`, and the stale `networking.yaml` — a second
+  Ingress object with the same name in the same namespace — is gone. **So the entry is closed**,
+  and two long-standing untruths went with it: the gateway's own water routes had never worked
+  (they targeted `/water/hot` and `/water/management`, paths `water-service` does not expose)
+  and `boiler-service` had no way in at all.
   `water-service` is **done** (HAS-127): its Java 21 migration
   dropped the Eureka client together with the whole Spring Cloud BOM, because the 2025.1.x
   release train is built against Boot 4.0.7 and no Boot 4.1 train exists yet — the service
   used no `DiscoveryClient`, `@LoadBalanced` or `lb://` URIs, so the removal was
   configuration-only. Expect the same forced choice in every remaining Spring Cloud
   consumer. `boiler-service` is **done** as well (HAS-128, same configuration-only
-  removal), and it made the gateway side of this concrete: the ingress has no rule for
-  `/home/boiler`, so requests under `/home` fall through to `api-gateway-service`, whose
-  discovery locator can no longer resolve a service that does not register in Eureka.
-  Nothing breaks today — no backend calls `boiler-service` — but the frontend will need an
-  explicit static route, exactly like the one `water-service` already has.
+  removal), and it made the gateway side of this concrete: it had no way in from outside until
+  HAS-171 gave it one.
 - `cholewa-security` — stays; possible future use for auth in `api-gateway-service`.
 - **Toolchain migration**: all existing services and libraries move from
   Java 17 / Spring Boot 4.0.1 to Java 21 / Spring Boot 4.1.0. Until a repo is migrated,
@@ -232,7 +239,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   HAS-155 epic gave it no task, because the migration was still pending when the epic was
   planned, so metrics, JSON logs and tracing landed together with Boot 4.1 and the 6200/8200
   scheme (`heating-service` and `boiler-service` took only the ports and probes that way, and
-  came back for the rest in HAS-160/161) — expect the same shape for `shelly-cloud-service`. Two beans it had to give up, both worth checking in every
+  came back for the rest in HAS-160/161) — expect the same shape for `shelly-cloud-service`.
+  Two beans it had to give up, both worth checking in every
   service that still builds its own: an own `WebClient.Builder` bean is **not** the
   autoconfigured one, so nothing instruments it and every outgoing call is untraced; and an
   own `RabbitTemplate` bean makes `RabbitAutoConfiguration` back off
@@ -293,7 +301,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (`amx-service` also had a stray `EXPOSE 6200 9200` matching no scheme). With
   `amx-service` — and `shelly-cloud-service` (HAS-129), which was born on it — every service
   in the `smart-home` namespace is on the scheme; only
-  nothing is left outside it — `api-gateway-service` joined in HAS-170. Note that this pin belongs in
+  nothing is left outside it — `api-gateway-service` joined in HAS-170. Note that this pin
+  belongs in
   the shared (default) document of `application.yaml`, not in the `home` section — kept
   there, the probe paths can be exercised locally on 80xx before the manifest ever reaches
   the cluster. The
