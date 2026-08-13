@@ -79,7 +79,7 @@ SpringBoot services are communicating with home system automations like:
   ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/boiler-service?style=plastic)
   ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/boiler-service?style=plastic)
 
-- __[shelly-cloud-service](https://github.com/smart-home-automation-system/shelly-cloud-service)__ (local-port - `6008`) — work in progress, not deployed yet
+- __[shelly-cloud-service](https://github.com/smart-home-automation-system/shelly-cloud-service)__ (local-port - `6008`) — work in progress, no endpoints yet
 
   [![CI](https://github.com/smart-home-automation-system/shelly-cloud-service/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/shelly-cloud-service/actions/workflows/CI.yml)
   [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=smart-home-automation-system_shelly-cloud-service&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=smart-home-automation-system_shelly-cloud-service)

@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `database-service` | 6005 | Persistence facade for other services |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
-| `shelly-cloud-service` | 6008 | Shelly cloud integration — **unfinished**, not deployed to the cluster; since 2026-08-13 a git repo in the org, with the same settings as every other service (squash-only merges, protected `main`) |
+| `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
@@ -75,7 +75,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 
 - `service-discovery` (Eureka) — will be removed: k8s DNS covers discovery. This implies
   removing the `spring-cloud-starter-netflix-eureka-client` dependency and config from
-  `api-gateway-service` and `shelly-cloud-service`,
+  `api-gateway-service` — `shelly-cloud-service` dropped it in HAS-129, so the gateway is
+  the last consumer —
   and replacing the discovery locator in `api-gateway-service` with explicit static
   routes using k8s DNS names. `water-service` is **done** (HAS-127): its Java 21 migration
   dropped the Eureka client together with the whole Spring Cloud BOM, because the 2025.1.x
@@ -103,29 +104,28 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `database.*` group, so consumers stop hand-maintaining
   `additional-spring-configuration-metadata.json`);
   current latest is **1.3.1**, adopted by `database-service`, `water-service`,
-  `heating-service` and `amx-service` (`boiler-service` is on 1.2.0, `notification-service`
-  and `ai-service` on 1.1.0, `shelly-cloud-service` on 0.2.1, `api-gateway-service` on 0.1.2).
+  `heating-service`, `amx-service` and `shelly-cloud-service` (`boiler-service` is on 1.2.0,
+  `notification-service` and `ai-service` on 1.1.0, `api-gateway-service` on 0.1.2).
   `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
   released as **1.0.0** (2026-07-23, HAS-119) — Java 21 + Jackson 3 (dropped
   `jackson-databind`, generated models keep `com.fasterxml.jackson.annotation` only),
   which closed the 4 Dependabot jackson-databind alerts. `database-service` adopted it
-  during its own migration (HAS-126); the last remaining consumer
-  (`shelly-cloud-service`) stays on
-  the old SDK (0.1.x) until its own Java 21 migration — this release unblocks it.
+  during its own migration (HAS-126); `shelly-cloud-service`, the last consumer on the old
+  SDK (0.1.x), moved during its own migration (HAS-129), so nothing is left behind.
   It has since had one feature release — **1.1.0** (2026-07-28, HAS-136 — `required` on
   the Eaton configuration models, so the generated models carry `@NotNull` and a consumer
   can validate the payload with `@Valid` alone); current latest is **1.1.0**, adopted by
-  `database-service`, `water-service`, `heating-service`, `boiler-service` and `amx-service`.
+  `database-service`, `water-service`, `heating-service`, `boiler-service`, `amx-service`
+  and `shelly-cloud-service`.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
   which closes its 4 Dependabot jackson-databind alerts. `water-service` is its first
   consumer on 1.0.0 (adopted during HAS-127), `heating-service` the second (HAS-123) and
-  `boiler-service` the third (HAS-128); the
-  remaining one (`shelly-cloud-service`) stays on the old client (0.0.x)
-  until its own Java 21 migration.
+  `boiler-service` the third (HAS-128) and `shelly-cloud-service` the fourth and last
+  (HAS-129), which leaves no consumer on the old client (0.0.x).
   The first **service** migrated is `notification-service` — Java 21 / Spring Boot 4.1.0,
   released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
   `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
@@ -238,8 +238,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   carries no `traceparent` and the trace dies at the queue. `heating-service` never hit this
   only because it declares no template at all. Deleting the bean turns the dead retry
   settings on as a side effect, which is what they were written for.
-  The last remaining service (`shelly-cloud-service`)
-  stays on Java 17 / Spring Boot 4.0.x until its own migration; `api-gateway-service` and
+  The eighth and last is `shelly-cloud-service` — Java 21 / Spring Boot 4.1.0, released
+  **0.1.0** (2026-08-13, HAS-129), its first release and first deployment. It is a skeleton
+  with no endpoints, so the migration could not break anything at runtime; the point was that
+  the first feature starts on the target shape, observability included, like `amx-service`.
+  Two things it turned up. Its repo had been scaffolded from `boiler-service` and never
+  renamed, so `release.yml` pushed the image as `magikabdul/boiler-service` — a release from
+  there would have overwritten the running boiler tags; check the image name, the Discord
+  titles and the README whenever a repo starts as a copy. And its Spring Cloud BOM could not
+  be bumped at all, only dropped, which is now the rule rather than the exception: no release
+  train targets Boot 4.1. With it **every service is migrated**; `api-gateway-service` and
   `service-discovery` are a separate case — both still run **Spring Boot 3.5.0 on Java 21**
   (Spring Cloud), and `service-discovery` is being retired anyway.
 
@@ -251,11 +259,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.3.1**,
   `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
-  and seven services — `notification-service`, `ai-service`, `database-service`,
-  `water-service`, `heating-service`, `boiler-service` and `amx-service` — are on the target
-  toolchain. The last one (`shelly-cloud-service`) is still on
-  Java 17 / Spring Boot 4.0.x, and `api-gateway-service` / `service-discovery` on Spring Boot
-  3.5.0 / Java 21; all will be migrated (see Pending architecture changes).
+  and **all eight services** — `notification-service`, `ai-service`, `database-service`,
+  `water-service`, `heating-service`, `boiler-service`, `amx-service` and
+  `shelly-cloud-service` — are on the target toolchain. Only `api-gateway-service` and
+  `service-discovery` are left on Spring Boot
+  3.5.0 / Java 21; both will be migrated (see Pending architecture changes).
 - **Ports**: in the cluster every service listens on **6200** (application) and exposes
   Actuator on **8200** (`management.server.port` in the `home` profile) — the k8s ingress
   routes only 6200, so Actuator is unreachable from outside; `readinessProbe` /
@@ -273,7 +281,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   those five had an Actuator at all until its
   observability task, which is why their manifests carried the probes commented out
   (`amx-service` also had a stray `EXPOSE 6200 9200` matching no scheme). With
-  `amx-service` every service in the `smart-home` namespace is on the scheme; only
+  `amx-service` — and `shelly-cloud-service` (HAS-129), which was born on it — every service
+  in the `smart-home` namespace is on the scheme; only
   `api-gateway-service` (still Spring Boot 3.5.0) and the retiring `service-discovery` are
   left outside it. Note that this pin belongs in
   the shared (default) document of `application.yaml`, not in the `home` section — kept
@@ -309,8 +318,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   first service on this scheme, `boiler-service` (HAS-161, released 1.2.0) the second,
   `water-service` (HAS-162, released 0.3.0) the third, `database-service` (HAS-163,
   released 0.5.0) the fourth, `notification-service` (HAS-164, released 0.2.0) the fifth,
-  `ai-service` (HAS-165, released 0.2.0) the sixth and `amx-service` (HAS-122, released
-  1.2.0) the seventh and last — that one outside the epic, inside its Java 21 migration;
+  `ai-service` (HAS-165, released 0.2.0) the sixth, `amx-service` (HAS-122, released
+  1.2.0) the seventh and `shelly-cloud-service` (HAS-129, released 0.1.0) the eighth and
+  last — the last two outside the epic, inside their Java 21 migrations;
   note that `micrometer-registry-prometheus` was already on the heating classpath, while the
   others have to add it — and for `water-service`, `database-service`,
   `notification-service`, `ai-service` and `amx-service` the missing piece was
@@ -348,9 +358,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   under the trace of the request that triggered the call, and `amx-service` (HAS-122) the
   seventh, the first RabbitMQ **producer** of the chain: the AMX datagram, the lookup in
   `database-service` and the consumption in `heating-service` now share one `traceId`, which
-  is what made the `RabbitTemplate` trap above visible. The last one
-  (`shelly-cloud-service`) adopts tracing
-  together with its observability task — **tracing is part of those tasks, not a separate one**.
+  is what made the `RabbitTemplate` trap above visible, and `shelly-cloud-service` (HAS-129)
+  the eighth, which was scaffolded with it rather than retrofitted. Every service now traces
+  — **tracing is part of the observability task, not a separate one**.
   A `@Scheduled` method needs nothing extra: Spring opens an observation around the task and
   writes it into the reactor context before subscribing
   (`ScheduledAnnotationReactiveSupport$SubscribingRunnable`), so a whole scheduled pass
