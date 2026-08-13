@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `database-service` | 6005 | Persistence facade for other services |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
-| `shelly-cloud-service` | 6008 | Shelly cloud integration — **unfinished, local-only** (not a git repo, no GitHub repo yet; kept as is for now) |
+| `shelly-cloud-service` | 6008 | Shelly cloud integration — **unfinished**, not deployed to the cluster; since 2026-08-13 a git repo in the org, with the same settings as every other service (squash-only merges, protected `main`) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
