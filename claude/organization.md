@@ -73,13 +73,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 ## Pending architecture changes (decided 2026-07, executed by the user)
 
 - `service-discovery` (Eureka) — **done**: archived on GitHub and deleted from the cluster
-  on 2026-08-13, k8s DNS covers discovery. What is left is on the `api-gateway-service`
-  side, and it is no longer cosmetic: the gateway still runs the
-  `spring-cloud-starter-netflix-eureka-client` against a server that no longer exists, so it
-  logs a failed heartbeat every 30 s and its discovery locator resolves nothing. It needs the
-  client and config removed
-  and replacing the discovery locator in `api-gateway-service` with explicit static
-  routes using k8s DNS names. `water-service` is **done** (HAS-127): its Java 21 migration
+  on 2026-08-13, k8s DNS covers discovery. The gateway's Eureka client and discovery locator
+  went with it in HAS-170 (released 0.1.0), which also ended the failed heartbeat every 30 s
+  it had been logging since the server disappeared — the Grafana "Error log spike" alert
+  dropped the `!= DiscoveryClient` filter that existed only to hide that noise. **What is
+  left is HAS-171**: the locator is gone but the static routes that replace it are not written
+  yet, so only the paths the ingress routes directly work from outside.
+  The gateway's own two water routes have never worked — they target `/water/hot` and
+  `/water/management`, paths `water-service` does not expose.
+  `water-service` is **done** (HAS-127): its Java 21 migration
   dropped the Eureka client together with the whole Spring Cloud BOM, because the 2025.1.x
   release train is built against Boot 4.0.7 and no Boot 4.1 train exists yet — the service
   used no `DiscoveryClient`, `@LoadBalanced` or `lb://` URIs, so the removal was
@@ -106,7 +108,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `additional-spring-configuration-metadata.json`);
   current latest is **1.3.1**, adopted by `database-service`, `water-service`,
   `heating-service`, `amx-service` and `shelly-cloud-service` (`boiler-service` is on 1.2.0,
-  `notification-service` and `ai-service` on 1.1.0, `api-gateway-service` on 0.1.2).
+  `notification-service` and `ai-service` on 1.1.0; `api-gateway-service` moved straight from
+  0.1.2 to 1.3.1 in HAS-170).
   `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
@@ -248,8 +251,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   there would have overwritten the running boiler tags; check the image name, the Discord
   titles and the README whenever a repo starts as a copy. And its Spring Cloud BOM could not
   be bumped at all, only dropped, which is now the rule rather than the exception: no release
-  train targets Boot 4.1. With it **every service is migrated**; `api-gateway-service` is the
-  only one left, still on **Spring Boot 3.5.0 / Java 21** (Spring Cloud).
+  train targets Boot 4.1. `api-gateway-service` followed as the eighth and last (HAS-170,
+  released **0.1.0**, 2026-08-13), which makes **every repository in the organization**
+  migrated. It is the one place where the missing release train could not simply be dropped —
+  the gateway *is* Spring Cloud — so the BOM import is gone and
+  `spring-cloud-starter-gateway-server-webflux` is pinned on its own at **5.0.2**. That pairing
+  is an **accepted risk**: it works because Boot 4.1.0 and 4.0.7 share the Spring Framework
+  7.0.x line, it was verified by hand (context up, route proxies, unmatched path 404s), but it
+  sits outside Spring's compatibility matrix — **re-test the gateway on every bump** of either
+  version, and drop the pin the day a Boot 4.1 train ships.
 
 ## Conventions
 
@@ -261,8 +271,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all eight services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service` and
-  `shelly-cloud-service` — are on the target toolchain. Only `api-gateway-service` is left,
-  on Spring Boot 3.5.0 / Java 21 (see Pending architecture changes).
+  `shelly-cloud-service` — plus `api-gateway-service` are on the target toolchain; nothing is
+  left behind (the gateway pins its Spring Cloud starter by hand, see Pending architecture
+  changes).
 - **Ports**: in the cluster every service listens on **6200** (application) and exposes
   Actuator on **8200** (`management.server.port` in the `home` profile) — the k8s ingress
   routes only 6200, so Actuator is unreachable from outside; `readinessProbe` /
@@ -282,7 +293,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (`amx-service` also had a stray `EXPOSE 6200 9200` matching no scheme). With
   `amx-service` — and `shelly-cloud-service` (HAS-129), which was born on it — every service
   in the `smart-home` namespace is on the scheme; only
-  `api-gateway-service` (still Spring Boot 3.5.0) is left outside it. Note that this pin belongs in
+  nothing is left outside it — `api-gateway-service` joined in HAS-170. Note that this pin belongs in
   the shared (default) document of `application.yaml`, not in the `home` section — kept
   there, the probe paths can be exercised locally on 80xx before the manifest ever reaches
   the cluster. The
@@ -357,7 +368,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   seventh, the first RabbitMQ **producer** of the chain: the AMX datagram, the lookup in
   `database-service` and the consumption in `heating-service` now share one `traceId`, which
   is what made the `RabbitTemplate` trap above visible, and `shelly-cloud-service` (HAS-129)
-  the eighth, which was scaffolded with it rather than retrofitted. Every service now traces
+  the eighth, which was scaffolded with it rather than retrofitted, and `api-gateway-service`
+  (HAS-170) the ninth and last — the one that matters most, since it opens the trace every
+  external request is then followed by. One limit to know there: logbook's own lines never
+  carry `traceId`, so for plain proxied traffic the gateway contributes the id but no log line
+  of its own. Every service now traces
   — **tracing is part of the observability task, not a separate one**.
   A `@Scheduled` method needs nothing extra: Spring opens an observation around the task and
   writes it into the reactor context before subscribing
