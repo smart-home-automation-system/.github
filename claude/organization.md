@@ -94,13 +94,18 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. It has since had three feature releases — **1.0.1** (2026-07-23, HAS-131 —
+  own migration. It has since had five feature releases — **1.0.1** (2026-07-23, HAS-131 —
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
-  (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`) and **1.2.0**
-  (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500);
-  current latest is **1.2.0**, adopted by `database-service`, `water-service`,
-  `heating-service` and `boiler-service` (`notification-service` and `ai-service` are on
-  1.1.0). `cholewa-security` migrated and released as **1.0.0**
+  (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`), **1.2.0**
+  (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500),
+  **1.3.0** (2026-08-13, HAS-146 — the shared R2DBC connection configuration, see the pool
+  note below) and **1.3.1** (2026-08-13, HAS-146 — ship the configuration metadata for the
+  `database.*` group, so consumers stop hand-maintaining
+  `additional-spring-configuration-metadata.json`);
+  current latest is **1.3.1**, adopted by `database-service`, `water-service` and
+  `heating-service` (`boiler-service` is on 1.2.0, `notification-service` and `ai-service` on
+  1.1.0, `amx-service` and `shelly-cloud-service` on 0.2.1, `api-gateway-service` on 0.1.2).
+  `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
   released as **1.0.0** (2026-07-23, HAS-119) — Java 21 + Jackson 3 (dropped
@@ -179,7 +184,20 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   HAS-163 (released 0.5.1) — the missing pool only became visible when Actuator arrived,
   because `ConnectionFactoryHealthIndicator` answered every `/actuator/health` call with a
   fresh physical connection; `r2dbc_pool_*` on `/actuator/prometheus` now makes the budget
-  observable per service. And a deployment that has fallen far
+  observable per service. **Since HAS-146 none of this is service code**: `cholewa-commons`
+  1.3.0 ships `R2dbcConnectionFactoryAutoConfiguration`, which builds the pooled
+  `ConnectionFactory` from the `database.*` group, and `heating-service` (1.3.2),
+  `database-service` (0.5.2) and `water-service` (0.4.0) deleted their own `DbConfig` —
+  `water-service` got its first pool that way. A service now pins only
+  `database.pool.max-size`, its share of the budget; leaving it out silently drops the pool to
+  the library default of 4. Two things the adoption costs. `@EnableR2dbcRepositories` has to
+  be **dropped**, not moved onto the application class: `@WebFluxTest` bootstraps from the
+  `@SpringBootConfiguration` class and applies its annotations, so the slice builds repository
+  beans and dies on a missing `r2dbcEntityTemplate` that a web slice never auto-configures —
+  Boot's `R2dbcRepositoriesAutoConfiguration` scans the right package on its own. And the
+  library validates the connection properties at bind time, so a partially configured
+  consumer now fails at startup naming the missing key instead of on the first query.
+  And a deployment that has fallen far
   behind can cross a rewritten Flyway migration — `heating-service` jumped from 0.2.1 (2024)
   to 1.1.0, where `V1` no longer creates the same table, so the legacy database refused
   validation; the fix was its own database (`home-automation-heating`), not `flyway repair`,
@@ -215,7 +233,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
-  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.2.0**,
+  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.3.1**,
   `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and six services — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service` and `boiler-service` — are on the target toolchain.
@@ -261,7 +279,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `home`-only document: locally the services run with `home,local` together, so a `home`
   document would apply there as well. Boot installs the structured encoder only when the
   value has length (`DefaultLogbackConfiguration.createEncoder`), so `console: ""` in the
-  `local` document restores plain text. `heating-service` (HAS-160, released 1.2.0) is the
+  `local` document restores plain text. The **`test` document needs the same override**, and
+  surefire has to activate that profile for every class
+  (`<systemPropertyVariables><spring.profiles.active>test</...>`): a test class without
+  `@ActiveProfiles` falls through to the shared document and logs JSON, and because surefire
+  reuses a JVM across classes, one such context installs the structured encoder for the plain
+  unit tests that follow — which is why the output looks randomly mixed. `@ActiveProfiles`
+  still wins over the system property (they do not merge), so a test can opt into another
+  profile. Done in `heating-service`, `database-service` and `water-service` (HAS-146); the
+  other services still have the split. `heating-service` (HAS-160, released 1.2.0) is the
   first service on this scheme, `boiler-service` (HAS-161, released 1.2.0) the second,
   `water-service` (HAS-162, released 0.3.0) the third, `database-service` (HAS-163,
   released 0.5.0) the fourth, `notification-service` (HAS-164, released 0.2.0) the fifth and
