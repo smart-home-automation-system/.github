@@ -106,18 +106,23 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. It has since had five feature releases — **1.0.1** (2026-07-23, HAS-131 —
+  own migration. It has since had six feature releases — **1.0.1** (2026-07-23, HAS-131 —
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
   (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`), **1.2.0**
   (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500),
   **1.3.0** (2026-08-13, HAS-146 — the shared R2DBC connection configuration, see the pool
-  note below) and **1.3.1** (2026-08-13, HAS-146 — ship the configuration metadata for the
+  note below), **1.3.1** (2026-08-13, HAS-146 — ship the configuration metadata for the
   `database.*` group, so consumers stop hand-maintaining
-  `additional-spring-configuration-metadata.json`);
-  current latest is **1.3.1**, adopted by `database-service`, `water-service`,
-  `heating-service`, `amx-service` and `shelly-cloud-service` (`boiler-service` is on 1.2.0,
-  `notification-service` and `ai-service` on 1.1.0; `api-gateway-service` moved straight from
-  0.1.2 to 1.3.1 in HAS-170).
+  `additional-spring-configuration-metadata.json`) and **1.4.0** (2026-09-07, HAS-150 —
+  answer 409 instead of 400 on a unique-constraint violation, because a broken unique is a
+  conflict with existing state, not a malformed request; **only `DuplicateKeyException`
+  moved** — `DataIntegrityViolationException` keeps the 400 it got in 1.2.0);
+  current latest is **1.4.0**, not yet adopted anywhere — `database-service` takes it in
+  HAS-150, and it is worth taking wherever a unique constraint can actually be broken
+  (`heating-service`, `water-service`), a no-op elsewhere. `1.3.1` is on `database-service`,
+  `water-service`, `heating-service`, `amx-service`, `shelly-cloud-service`,
+  `presence-service` and `api-gateway-service` (which moved straight from 0.1.2 in HAS-170);
+  `boiler-service` is on 1.2.0, `notification-service` and `ai-service` on 1.1.0.
   `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
@@ -276,7 +281,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
-  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.3.1**,
+  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.4.0**,
   `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
