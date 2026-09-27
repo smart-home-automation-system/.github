@@ -222,8 +222,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   library validates the connection properties at bind time, so a partially configured
   consumer now fails at startup naming the missing key instead of on the first query.
   **Since 1.5.0 the pool also validates every connection on acquire** (`SELECT 1`, bounded by
-  `database.pool.max-validation-time`, default 5 s) and caps its life (`max-life-time`, 30 min),
-  plus TCP keepalive and a connect timeout on the driver. The outage behind it (2026-09-26,
+  `database.pool.max-validation-time`, default 2 s since 1.5.1, 5 s in 1.5.0) and caps its life
+  (`max-life-time`, 30 min), plus TCP keepalive and a connect timeout on the driver. Recovery is
+  **gradual**: a failed acquire discards up to two broken connections (r2dbc-pool retries once)
+  and its caller may still get an error — the pool is clean after a few requests. Raising the
+  retry count was tried and rejected, because r2dbc-pool retries every failure, pool exhaustion
+  and an unreachable database included. Keep `max-validation-time` well below
+  `max-acquire-time`, or the acquire limit cuts every validation off and nothing is discarded. The outage behind it (2026-09-26,
   HAS-150): the only pooled connection of `database-service` stopped getting answers; callers
   that timed out cancelled their queries, the cancel handed the connection back to the pool with
   the query still queued on it, every later caller queued behind it, and once the driver's
@@ -470,6 +475,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   requests** — no direct commits to `main`. Branch naming: **`feature/HAS-<n>`**, where
   `<n>` is the Jira task number (HAS project). When no Jira task covers the change,
   create one first (`jira-backlog`) or confirm with the user how to proceed.
+  - **No merge without both reviews.** Before a PR of a service or library is called ready
+    for merge, Claude runs **`service-review` and `/code-review`** on its diff, shows the
+    results and records the outcome on the PR. Until both are done: no merge, so no release
+    and no deploy — Claude does not hand over a `gh release create` command for an
+    unreviewed change. This holds for small follow-up PRs too (test fixes, version bumps).
+    (HAS-150 shipped seven PRs across four repos with neither review; the quality gate found
+    it only after release and deploy.)
   - **Exceptions — commit straight to `main`, no branch or PR:** `organization-repository`
     (this `.github` repo), `deployment-tools` and `claude-tooling`. Do not create
     `feature/*` branches or PRs for these; just commit to `main` and push (still only when
