@@ -106,7 +106,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. It has since had seven feature releases — **1.0.1** (2026-07-23, HAS-131 —
+  own migration. It has since had eight releases — **1.0.1** (2026-07-23, HAS-131 —
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
   (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`), **1.2.0**
   (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500),
@@ -116,14 +116,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `additional-spring-configuration-metadata.json`), **1.4.0** (2026-09-07, HAS-150 —
   answer 409 instead of 400 on a unique-constraint violation, because a broken unique is a
   conflict with existing state, not a malformed request; **only `DuplicateKeyException`
-  moved** — `DataIntegrityViolationException` keeps the 400 it got in 1.2.0) and **1.5.0**
+  moved** — `DataIntegrityViolationException` keeps the 400 it got in 1.2.0), **1.5.0**
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
-  below); current latest is **1.5.0**, on `database-service` (0.6.0) and `amx-service`
-  (1.2.1). `1.3.1` is still on `water-service`, `heating-service`, `shelly-cloud-service`,
+  below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
+  describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
+  (0.6.1) and `amx-service` (1.2.2). `1.3.1` is still on `water-service`, `heating-service`, `shelly-cloud-service`,
   `presence-service` and `api-gateway-service`; `boiler-service` is on 1.2.0,
   `notification-service` and `ai-service` on 1.1.0. They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
-  libraries, no-op or not; for the pool users (`heating-service`, `water-service`) 1.5.0 is a
+  libraries, no-op or not; for the pool users (`heating-service`, `water-service`) 1.5.x is a
   real fix, not a formality.
   `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
@@ -140,8 +141,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
-  current latest is **1.3.0**, on `database-service` (0.6.0). `water-service`,
-  `heating-service`, `boiler-service`, `amx-service` and `shelly-cloud-service` are on
+  current latest is **1.3.0**, on `database-service` (0.6.1) and `amx-service` (1.2.2).
+  `water-service`, `heating-service`, `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
@@ -235,9 +236,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   request queue (256) was full every query failed instantly with `RequestQueueException` — for
   19.5 h, until the pod was restarted, while the pod stayed Ready. A connection used every 30 s
   never reaches `max-idle-time`, which is why neither idle eviction nor anything else noticed.
-  The same outage added a 5 s timeout on `amx-service`'s call to `database-service` (1.2.1) and
-  the Grafana rule `database-service not answering` (zero 2xx in 15 min) — `Error log spike`
-  had only flapped, and the first 2.5 h logged no error at all.
+  The same outage added a 5 s timeout on `amx-service`'s call to `database-service` (1.2.1;
+  since 1.2.2 a failed lookup answers the AMX controller with its real status — 404 unknown
+  data point, 502 database-service failing or unreachable, 504 timeout — instead of a blanket
+  400) and the Grafana rule `database-service not answering` (zero 2xx in 15 min) — `Error log
+  spike` had only flapped, and the first 2.5 h logged no error at all.
   And a deployment that has fallen far
   behind can cross a rewritten Flyway migration — `heating-service` jumped from 0.2.1 (2024)
   to 1.1.0, where `V1` no longer creates the same table, so the legacy database refused
@@ -305,7 +308,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
-  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.5.0**,
+  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.5.1**,
   `smart-home-sdk` **1.3.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
