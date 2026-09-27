@@ -17,7 +17,7 @@ except `deployment-tools`.
 | `heating-service` | 6002 | Heating control |
 | `notification-service` | 6003 | Notifications (Discord bot) |
 | `ai-service` | 6004 | AI integration |
-| `database-service` | 6005 | Persistence facade for other services |
+| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150) |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
@@ -106,23 +106,25 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. It has since had six feature releases — **1.0.1** (2026-07-23, HAS-131 —
+  own migration. It has since had seven feature releases — **1.0.1** (2026-07-23, HAS-131 —
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
   (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`), **1.2.0**
   (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500),
   **1.3.0** (2026-08-13, HAS-146 — the shared R2DBC connection configuration, see the pool
   note below), **1.3.1** (2026-08-13, HAS-146 — ship the configuration metadata for the
   `database.*` group, so consumers stop hand-maintaining
-  `additional-spring-configuration-metadata.json`) and **1.4.0** (2026-09-07, HAS-150 —
+  `additional-spring-configuration-metadata.json`), **1.4.0** (2026-09-07, HAS-150 —
   answer 409 instead of 400 on a unique-constraint violation, because a broken unique is a
   conflict with existing state, not a malformed request; **only `DuplicateKeyException`
-  moved** — `DataIntegrityViolationException` keeps the 400 it got in 1.2.0);
-  current latest is **1.4.0**, not yet adopted anywhere — `database-service` takes it in
-  HAS-150, and it is worth taking wherever a unique constraint can actually be broken
-  (`heating-service`, `water-service`), a no-op elsewhere. `1.3.1` is on `database-service`,
-  `water-service`, `heating-service`, `amx-service`, `shelly-cloud-service`,
-  `presence-service` and `api-gateway-service` (which moved straight from 0.1.2 in HAS-170);
-  `boiler-service` is on 1.2.0, `notification-service` and `ai-service` on 1.1.0.
+  moved** — `DataIntegrityViolationException` keeps the 400 it got in 1.2.0) and **1.5.0**
+  (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
+  below); current latest is **1.5.0**, on `database-service` (0.6.0) and `amx-service`
+  (1.2.1). `1.3.1` is still on `water-service`, `heating-service`, `shelly-cloud-service`,
+  `presence-service` and `api-gateway-service`; `boiler-service` is on 1.2.0,
+  `notification-service` and `ai-service` on 1.1.0. They move to the latest release with
+  their next task — the rule is that a service always carries the latest release of the own
+  libraries, no-op or not; for the pool users (`heating-service`, `water-service`) 1.5.0 is a
+  real fix, not a formality.
   `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
   consumers yet, so no coordinated bumps needed. `smart-home-sdk` migrated and
@@ -131,11 +133,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   which closed the 4 Dependabot jackson-databind alerts. `database-service` adopted it
   during its own migration (HAS-126); `shelly-cloud-service`, the last consumer on the old
   SDK (0.1.x), moved during its own migration (HAS-129), so nothing is left behind.
-  It has since had one feature release — **1.1.0** (2026-07-28, HAS-136 — `required` on
+  It has since had three feature releases — **1.1.0** (2026-07-28, HAS-136 — `required` on
   the Eaton configuration models, so the generated models carry `@NotNull` and a consumer
-  can validate the payload with `@Valid` alone); current latest is **1.1.0**, adopted by
-  `database-service`, `water-service`, `heating-service`, `boiler-service`, `amx-service`
-  and `shelly-cloud-service`.
+  can validate the payload with `@Valid` alone), **1.2.0** (2026-09-27, HAS-149 — the
+  household registry models `HouseholdMember` and `MemberPhoneDetails`, with the schema's
+  bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
+  **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
+  of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
+  current latest is **1.3.0**, on `database-service` (0.6.0). `water-service`,
+  `heating-service`, `boiler-service`, `amx-service` and `shelly-cloud-service` are on
+  1.1.0 and move with their next task.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
@@ -214,6 +221,18 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   Boot's `R2dbcRepositoriesAutoConfiguration` scans the right package on its own. And the
   library validates the connection properties at bind time, so a partially configured
   consumer now fails at startup naming the missing key instead of on the first query.
+  **Since 1.5.0 the pool also validates every connection on acquire** (`SELECT 1`, bounded by
+  `database.pool.max-validation-time`, default 5 s) and caps its life (`max-life-time`, 30 min),
+  plus TCP keepalive and a connect timeout on the driver. The outage behind it (2026-09-26,
+  HAS-150): the only pooled connection of `database-service` stopped getting answers; callers
+  that timed out cancelled their queries, the cancel handed the connection back to the pool with
+  the query still queued on it, every later caller queued behind it, and once the driver's
+  request queue (256) was full every query failed instantly with `RequestQueueException` — for
+  19.5 h, until the pod was restarted, while the pod stayed Ready. A connection used every 30 s
+  never reaches `max-idle-time`, which is why neither idle eviction nor anything else noticed.
+  The same outage added a 5 s timeout on `amx-service`'s call to `database-service` (1.2.1) and
+  the Grafana rule `database-service not answering` (zero 2xx in 15 min) — `Error log spike`
+  had only flapped, and the first 2.5 h logged no error at all.
   And a deployment that has fallen far
   behind can cross a rewritten Flyway migration — `heating-service` jumped from 0.2.1 (2024)
   to 1.1.0, where `V1` no longer creates the same table, so the legacy database refused
@@ -281,8 +300,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
-  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.4.0**,
-  `smart-home-sdk` **1.1.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
+  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.5.0**,
+  `smart-home-sdk` **1.3.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
   `shelly-cloud-service` and `presence-service` — plus `api-gateway-service` are on the
