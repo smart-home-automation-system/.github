@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
-| `presence-service` | 6009 | Household presence monitoring — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints, no persistence and makes no UniFi calls yet. Created 2026-08-13 as the entry task of epic HAS-147 (HAS-148) |
+| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). Since 0.2.0 (2026-10-01, HAS-149) it reads the clients connected to the home network from the UniFi gateway (`Flux<ConnectedClient>`) and lists them on a diagnostic endpoint, `GET /home/presence/clients` — deliberately **not routed** by the gateway. No presence logic, no persistence and no scheduled job yet (HAS-151…154) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
@@ -120,8 +120,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
-  (0.6.1) and `amx-service` (1.2.2). `1.3.1` is still on `water-service`, `heating-service`, `shelly-cloud-service`,
-  `presence-service` and `api-gateway-service`; `boiler-service` is on 1.2.0,
+  (0.6.1), `amx-service` (1.2.2) and `presence-service` (0.2.0). `1.3.1` is still on
+  `water-service`, `heating-service`, `shelly-cloud-service` and `api-gateway-service`;
+  `boiler-service` is on 1.2.0,
   `notification-service` and `ai-service` on 1.1.0. They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
   libraries, no-op or not; for the pool users (`heating-service`, `water-service`) 1.5.x is a
@@ -316,6 +317,40 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   target toolchain; nothing is left behind (the gateway pins its Spring Cloud starter by
   hand, see Pending architecture changes; `presence-service` was never migrated — it was
   scaffolded on the target versions in HAS-148).
+- **Spring Boot follows the own-library rule (decided 2026-10-01, HAS-149)**: when a newer
+  Boot release exists, the service being worked on moves to it in that task, together with
+  the latest own libraries; the others follow with their next task — there is no org-wide
+  bump. `presence-service` (0.2.0) is the first on **4.1.1**, every other service is still
+  on 4.1.0, so a mixed fleet is the expected state, not drift to report. With it came
+  logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
+  with `style: json` and header obfuscation. The one place where a Boot bump is not routine
+  is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
+- **Calling a device or gateway outside the cluster** — what `presence-service` learned on
+  the UniFi gateway (HAS-149), worth checking in every client of an external system:
+  - A self-signed certificate is **pinned by fingerprint**
+    (`FingerprintTrustManagerFactory`, fingerprint in `application.yaml` — it is not a
+    secret), never accepted with `InsecureTrustManagerFactory`. When the certificate does
+    not name the address it is reached by, hostname verification has to go, and that takes
+    `setEndpointIdentificationAlgorithm("")`: the JDK ignores `null` and keeps verifying,
+    which shows only against a real HTTPS endpoint — so the pinning gets its own test on an
+    HTTPS `MockWebServer` (`okhttp-tls`), in both directions.
+  - `WebClientRequestException` covers failures only **up to the response headers**. A
+    stall or a dropped connection in the middle of the body arrives as
+    `WebClientResponseException`, a wrong payload as `DecodingException`, and a 200 with
+    valid JSON but no payload as a `NullPointerException` further down the chain. An error
+    mapping that promises "every failure becomes our exception" has to map everything and
+    sit after the null check; `headersDelay` alone does not test it, `bodyDelay` and
+    `onResponseBody(new SocketEffect.CloseSocket())` do.
+  - A property with a harmless-looking default (`host: localhost`) defeats `@NotBlank`: the
+    pod starts, turns Ready and fails every call. Mandatory connection settings get no
+    default outside the `test` document.
+  - The wire model and the service's own model must not be interchangeable by accident —
+    two records with the same field names compile when swapped, and the validation in the
+    domain constructor then fails inside Jackson, before any filter runs.
+  - Tests use `com.squareup.okhttp3:mockwebserver3`, not the legacy `mockwebserver`, which
+    drags JUnit 4 onto the classpath (a JUnit 4 test compiles, never runs, build stays
+    green). The trap is still in amx-, boiler-, heating-, water- and shelly-cloud-service
+    from the shared scaffold.
 - **Ports**: in the cluster every service listens on **6200** (application) and exposes
   Actuator on **8200** (`management.server.port` in the `home` profile) — the k8s ingress
   routes only 6200, so Actuator is unreachable from outside; `readinessProbe` /
