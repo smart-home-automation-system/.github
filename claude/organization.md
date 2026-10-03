@@ -120,12 +120,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
-  (0.6.1), `amx-service` (1.2.2) and `presence-service` (0.3.1). `1.3.1` is still on
-  `water-service`, `heating-service`, `shelly-cloud-service` and `api-gateway-service`;
+  (0.6.1), `amx-service` (1.2.2), `presence-service` (0.3.1) and `heating-service` (1.4.0).
+  `1.3.1` is still on `water-service`, `shelly-cloud-service` and `api-gateway-service`;
   `boiler-service` is on 1.2.0,
   `notification-service` and `ai-service` on 1.1.0. They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
-  libraries, no-op or not; for the pool users (`heating-service`, `water-service`) 1.5.x is a
+  libraries, no-op or not; for the last pool user still behind (`water-service`) 1.5.x is a
   real fix, not a formality.
   `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
@@ -142,9 +142,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
-  current latest is **1.3.0**, on `database-service` (0.6.1), `amx-service` (1.2.2) and
-  `presence-service` (0.3.1).
-  `water-service`, `heating-service`, `boiler-service` and `shelly-cloud-service` are on
+  current latest is **1.3.0**, on `database-service` (0.6.1), `amx-service` (1.2.2),
+  `presence-service` (0.3.1) and `heating-service` (1.4.0).
+  `water-service`, `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
@@ -207,11 +207,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `R2dbcAutoConfiguration` backs off once such a bean exists — so it has to be wrapped in
   `io.r2dbc.pool.ConnectionPool` with a bounded `maxSize` and declared as
   `@Bean(destroyMethod = "dispose")`; the managed database allows 22 backend connections in
-  total, today split heating 8 / database 6 / water 4 / presence 2 — 20 allotted, and the 2
-  left over are needed: Flyway takes a JDBC connection at every start and a database tool one
-  per session, so with presence at 3 and a single spare slot a few IDE queries exhausted the
-  server (`53300 remaining connection slots are reserved`, 2026-10-03; `presence-service`
-  0.3.1 gave one back). `database-service` got its pool in
+  total, today split heating 4 / database 6 / water 4 / presence 2 — 16 allotted, 6 free for
+  Flyway (a JDBC connection at every start), database tools and the low-traffic `reporter`
+  database on the same cluster. The limit belongs to the **whole cluster, not to this
+  project**: on 2026-10-03 the server ran out (`53300 remaining connection slots are
+  reserved`) because an unrelated application held 10 connections next to pools sized for 21;
+  its databases were removed from the cluster the same day, `presence-service` 0.3.1 went
+  from 3 to 2 and `heating-service` 1.4.0 from 8 to 4 (it used 1-2; its RabbitMQ `prefetch`
+  went 5 → 3, because the prefetch has to stay below the pool size). `database-service` got its pool in
   HAS-163 (released 0.5.1) — the missing pool only became visible when Actuator arrived,
   because `ConnectionFactoryHealthIndicator` answered every `/actuator/health` call with a
   fresh physical connection; `r2dbc_pool_*` on `/actuator/prometheus` now makes the budget
@@ -325,10 +328,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - **Spring Boot follows the own-library rule (decided 2026-10-01, HAS-149)**: when a newer
   Boot release exists, the service being worked on moves to it in that task, together with
   the latest own libraries; the others follow with their next task — there is no org-wide
-  bump. `presence-service` (since 0.2.0) is the first on **4.1.1**, every other service is still
-  on 4.1.0, so a mixed fleet is the expected state, not drift to report. With it came
+  bump. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
+  the second, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
-  with `style: json` and header obfuscation. The one place where a Boot bump is not routine
+  with `style: json` and header obfuscation. logbook 4.2.0 declares apiguardian 1.1.2 itself,
+  so the `apiguardian-api` pin in `dependencyManagement` goes with the bump (dropped in
+  `heating-service`). The one place where a Boot bump is not routine
   is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
 - **Calling a device or gateway outside the cluster** — what `presence-service` learned on
   the UniFi gateway (HAS-149), worth checking in every client of an external system:
