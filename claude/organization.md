@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
-| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). Since 0.2.0 (2026-10-01, HAS-149) it reads the clients connected to the home network from the UniFi gateway (`Flux<ConnectedClient>`) and lists them on a diagnostic endpoint, `GET /home/presence/clients` — deliberately **not routed** by the gateway. No presence logic, no persistence and no scheduled job yet (HAS-151…154) |
+| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Current release **0.3.1** (2026-10-03, pool 3 → 2). The only endpoint is still the diagnostic `GET /home/presence/clients`, deliberately **not routed** by the gateway; API, notifications and retention are to come (HAS-152…154) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
@@ -32,7 +32,7 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 |---|---|---|
 | `cholewa-commons` | Common utilities | ai, amx, api-gateway, boiler, database, heating, notification, presence, shelly-cloud, water |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
-| `smart-home-sdk` | Shared domain / API models | amx, boiler, database, heating, shelly-cloud, water |
+| `smart-home-sdk` | Shared domain / API models | amx, boiler, database, heating, presence, shelly-cloud, water |
 | `shelly-client` | REST client for Shelly devices | boiler, heating, shelly-cloud, water |
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -120,7 +120,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
-  (0.6.1), `amx-service` (1.2.2) and `presence-service` (0.2.0). `1.3.1` is still on
+  (0.6.1), `amx-service` (1.2.2) and `presence-service` (0.3.1). `1.3.1` is still on
   `water-service`, `heating-service`, `shelly-cloud-service` and `api-gateway-service`;
   `boiler-service` is on 1.2.0,
   `notification-service` and `ai-service` on 1.1.0. They move to the latest release with
@@ -142,7 +142,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
-  current latest is **1.3.0**, on `database-service` (0.6.1) and `amx-service` (1.2.2).
+  current latest is **1.3.0**, on `database-service` (0.6.1), `amx-service` (1.2.2) and
+  `presence-service` (0.3.1).
   `water-service`, `heating-service`, `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
   `shelly-client` migrated and released as **1.0.0**
@@ -206,7 +207,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `R2dbcAutoConfiguration` backs off once such a bean exists — so it has to be wrapped in
   `io.r2dbc.pool.ConnectionPool` with a bounded `maxSize` and declared as
   `@Bean(destroyMethod = "dispose")`; the managed database allows 22 backend connections in
-  total, today split heating 8 / database 6 / water 4. `database-service` got its pool in
+  total, today split heating 8 / database 6 / water 4 / presence 2 — 20 allotted, and the 2
+  left over are needed: Flyway takes a JDBC connection at every start and a database tool one
+  per session, so with presence at 3 and a single spare slot a few IDE queries exhausted the
+  server (`53300 remaining connection slots are reserved`, 2026-10-03; `presence-service`
+  0.3.1 gave one back). `database-service` got its pool in
   HAS-163 (released 0.5.1) — the missing pool only became visible when Actuator arrived,
   because `ConnectionFactoryHealthIndicator` answered every `/actuator/health` call with a
   fresh physical connection; `r2dbc_pool_*` on `/actuator/prometheus` now makes the budget
@@ -320,7 +325,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - **Spring Boot follows the own-library rule (decided 2026-10-01, HAS-149)**: when a newer
   Boot release exists, the service being worked on moves to it in that task, together with
   the latest own libraries; the others follow with their next task — there is no org-wide
-  bump. `presence-service` (0.2.0) is the first on **4.1.1**, every other service is still
+  bump. `presence-service` (since 0.2.0) is the first on **4.1.1**, every other service is still
   on 4.1.0, so a mixed fleet is the expected state, not drift to report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
   with `style: json` and header obfuscation. The one place where a Boot bump is not routine
