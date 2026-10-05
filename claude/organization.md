@@ -128,7 +128,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
-  (0.6.1), `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.4.0),
+  (0.7.0), `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.4.0),
   `water-service` (0.5.0, HAS-178) and `api-gateway-service` (0.3.1). `1.3.1` is still on
   `shelly-cloud-service`;
   `boiler-service` is on 1.2.0,
@@ -151,7 +151,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
-  current latest is **1.3.0**, on `database-service` (0.6.1), `amx-service` (1.2.2),
+  current latest is **1.3.0**, on `database-service` (0.7.0), `amx-service` (1.2.2),
   `presence-service` (0.6.0), `heating-service` (1.4.0) and `water-service` (0.5.0).
   `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
@@ -342,13 +342,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   Boot release exists, the service being worked on moves to it in that task, together with
   the latest own libraries; the others follow with their next task — there is no org-wide
   bump. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
-  the second, `water-service` (0.5.0) the third and `api-gateway-service` (0.3.0) the fourth,
-  every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
+  the second, `water-service` (0.5.0) the third, `api-gateway-service` (0.3.0) the fourth and
+  `database-service` (0.7.0, HAS-145) the fifth, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
   report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
   with `style: json` and header obfuscation. logbook 4.2.0 declares apiguardian 1.1.2 itself,
   so the `apiguardian-api` pin in `dependencyManagement` goes with the bump (dropped in
-  `heating-service`, `water-service` and `api-gateway-service`; `presence-service` still
+  `heating-service`, `water-service`, `api-gateway-service` and `database-service`;
+  `presence-service` still
   carries it, harmlessly). The one place where a Boot bump is not routine
   is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
 - **A reactive `@Scheduled` method is called once, not once per run** (found in HAS-154). Spring
@@ -362,6 +363,26 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   the same `Mono`** with the clock moved on — a fresh call per test cannot see the bug.
   Checked on 2026-10-05: `water-service` (`WaterSensorCron`) and `boiler-service`
   (`StatusCron`) are clean, everything there happens in operator lambdas.
+- **Error messages are English, always** (owner's rule, 2026-10-05, HAS-145) — in responses
+  and logs, on every machine. The one source that breaks it silently is Bean Validation: a
+  violated constraint is worded in the locale of the JVM or the request, so the same request
+  reads in Polish on a developer machine and in English in the cluster (the pods run
+  `en_US`). `database-service` (0.7.0) pins it with `ValidationMessagesConfig`, a
+  `ValidationConfigurationCustomizer` replacing the message interpolator with one that ignores
+  the locale — it has to be a customizer, because Spring installs its own locale-aware
+  interpolator and runs the customizers after it — and a test that makes the JVM Polish and
+  expects English. Not yet in the other services; the shared home for it is `cholewa-commons`.
+  A locale-dependent text is a defect to fix, not a caveat to document.
+- **A constraint on a query parameter or path variable needs no `@Validated`** (HAS-145).
+  Since Spring Framework 6.1 WebFlux validates a constrained `@RequestParam` /
+  `@PathVariable` itself and raises `HandlerMethodValidationException`. `@Validated` on the
+  controller class switches that **off** in favour of an AOP proxy answering
+  `ConstraintViolationException`: every `@Valid` body is then validated twice, and the
+  `cholewa-commons` processor puts the Java method name into the answer
+  (`getEatonDeviceConfiguration.point: …`). The built-in exception, in turn, is answered by
+  the `cholewa-commons` default as a bare "Validation failure" — `database-service` adds
+  `InvalidRequestParameterProcessor`, which lists the violated constraints' messages; a
+  candidate for the library once a second service needs it.
 - **A `Duration` property without a unit binds as milliseconds.** `PRESENCE_RETENTION=365`,
   meant as days, would have put the retention cutoff at "now" and let the nightly job delete
   the whole table. A duration that decides what gets deleted (or how long something waits)
