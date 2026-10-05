@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
-| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Since **0.4.0** (2026-10-05, HAS-152) it has a reporting API: `GET /home/presence/residents/presence` (every active member with `present`, `since`, `lastCheckedAt`) and `GET /home/presence/residents/{name}/report?from=&to=` (the periods at home within a range of at most 366 days, local date-times, the one still going on marked `open`) — residents are identified by **name**, there is no id. **0.5.0** (2026-10-05, HAS-153) added the aggregates: `GET /home/presence/residents/{name}/report/daily` (per day `secondsAtHome`, `firstArrival`, `lastDeparture`, `presencePercentage`) and `GET /home/presence/house/report` (one timeline of occupied / empty stretches, per day `secondsOccupied`, `secondsEmpty`, `wasEmpty`). Both cover only what was observed and name the bounds (`observedFrom`, `observedUntil`); a member inside their grace period keeps the house occupied (the report asks the tracker), while an outage across a status change still reads as empty — know that before acting on `wasEmpty`. All four reports are routed by the gateway; the diagnostic `GET /home/presence/clients` (every MAC address on the network) is deliberately **not**. Current release **0.5.0**; notifications and retention are to come (HAS-154) |
+| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Since **0.4.0** (2026-10-05, HAS-152) it has a reporting API: `GET /home/presence/residents/presence` (every active member with `present`, `since`, `lastCheckedAt`) and `GET /home/presence/residents/{name}/report?from=&to=` (the periods at home within a range of at most 366 days, local date-times, the one still going on marked `open`) — residents are identified by **name**, there is no id. **0.5.0** (2026-10-05, HAS-153) added the aggregates: `GET /home/presence/residents/{name}/report/daily` (per day `secondsAtHome`, `firstArrival`, `lastDeparture`, `presencePercentage`) and `GET /home/presence/house/report` (one timeline of occupied / empty stretches, per day `secondsOccupied`, `secondsEmpty`, `wasEmpty`). Both cover only what was observed and name the bounds (`observedFrom`, `observedUntil`); a member inside their grace period keeps the house occupied (the report asks the tracker), while an outage across a status change still reads as empty — know that before acting on `wasEmpty`. All four reports are routed by the gateway; the diagnostic `GET /home/presence/clients` (every MAC address on the network) is deliberately **not**. **0.6.0** (2026-10-05, HAS-154) closed the scope of the epic with the retention: every night at 03:00 the rows **last checked** more than `presence.retention` ago (`P365D`; 7 days to ten years, a bare number is days) are deleted — by the last check, so the current row of a watched member always survives — and the statistics never count anything before that horizon as observed. Current release **0.6.0**; notifications are not planned yet |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
@@ -128,7 +128,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
-  (0.6.1), `amx-service` (1.2.2), `presence-service` (0.5.0), `heating-service` (1.4.0),
+  (0.6.1), `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.4.0),
   `water-service` (0.5.0, HAS-178) and `api-gateway-service` (0.3.1). `1.3.1` is still on
   `shelly-cloud-service`;
   `boiler-service` is on 1.2.0,
@@ -152,7 +152,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
   current latest is **1.3.0**, on `database-service` (0.6.1), `amx-service` (1.2.2),
-  `presence-service` (0.5.0), `heating-service` (1.4.0) and `water-service` (0.5.0).
+  `presence-service` (0.6.0), `heating-service` (1.4.0) and `water-service` (0.5.0).
   `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
   `shelly-client` migrated and released as **1.0.0**
@@ -351,6 +351,29 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `heating-service`, `water-service` and `api-gateway-service`; `presence-service` still
   carries it, harmlessly). The one place where a Boot bump is not routine
   is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
+- **A reactive `@Scheduled` method is called once, not once per run** (found in HAS-154). Spring
+  invokes a method returning a `Mono` at startup, keeps the publisher and **subscribes to it
+  again** for every run (`ScheduledAnnotationReactiveSupport`). Whatever is computed while the
+  `Mono` is built — "now", a cutoff, anything read from mutable state — is frozen at the start
+  of the pod. The retention job of `presence-service` first computed its cutoff that way: it
+  would have deleted up to the same date every night until a restart, and logged that date as
+  if it were current. Everything that depends on time or state belongs inside the chain
+  (`Mono.defer`, or a lambda of an operator), and the test for it has to subscribe **twice to
+  the same `Mono`** with the clock moved on — a fresh call per test cannot see the bug.
+  Checked on 2026-10-05: `water-service` (`WaterSensorCron`) and `boiler-service`
+  (`StatusCron`) are clean, everything there happens in operator lambdas.
+- **A `Duration` property without a unit binds as milliseconds.** `PRESENCE_RETENTION=365`,
+  meant as days, would have put the retention cutoff at "now" and let the nightly job delete
+  the whole table. A duration that decides what gets deleted (or how long something waits)
+  carries `@DurationUnit` and a lower bound (`@DurationMin`), and a context-runner test pins
+  both — as in `PresenceProperties`.
+- **A repository test without PostgreSQL**: `presence-service` runs one statement — its
+  retention `DELETE` — in a `@DataR2dbcTest` slice on an in-memory H2 (`r2dbc-h2`, test
+  scope). The slice does not load the pooled `ConnectionFactory` of `cholewa-commons`, so
+  `spring.r2dbc.url` alone points it at H2; the table is created by the test (no Flyway in
+  the slice), and H2 needs `CASE_INSENSITIVE_IDENTIFIERS=TRUE`, because Spring Data quotes
+  the table name while raw `@Query` SQL does not. Good for portable, destructive statements;
+  PostgreSQL-only SQL (`DISTINCT ON`) would take Testcontainers.
 - **Calling a device or gateway outside the cluster** — what `presence-service` learned on
   the UniFi gateway (HAS-149), worth checking in every client of an external system:
   - A self-signed certificate is **pinned by fingerprint**
