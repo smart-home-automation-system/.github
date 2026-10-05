@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
-| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Current release **0.3.1** (2026-10-03, pool 3 → 2). The only endpoint is still the diagnostic `GET /home/presence/clients`, deliberately **not routed** by the gateway; API, notifications and retention are to come (HAS-152…154) |
+| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Since **0.4.0** (2026-10-05, HAS-152) it has a reporting API: `GET /home/presence/residents/presence` (every active member with `present`, `since`, `lastCheckedAt`) and `GET /home/presence/residents/{name}/report?from=&to=` (the periods at home within a range of at most 366 days, local date-times, the one still going on marked `open`) — residents are identified by **name**, there is no id. Both are routed by the gateway; the diagnostic `GET /home/presence/clients` (every MAC address on the network) is deliberately **not**. Current release **0.4.0**; statistics, notifications and retention are to come (HAS-153, HAS-154) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
@@ -77,7 +77,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **only scheme, host and port** onto the incoming URI — the path part of a route's `uri(...)` is
   discarded, so a target mounted elsewhere needs `rewritePath`, not a longer URI string.
   `notification-service` is deliberately not routed: its `/home/notification/skippy` endpoint has no
-  external consumer.
+  external consumer. `presence-service` is routed as an **allowlist** (gateway 0.3.0, HAS-152) —
+  exactly its two report reads, `GET` only — because it also serves `/home/presence/clients`,
+  which must stay inside: `PathPattern` matches the raw, un-normalised path, so a `/**` tail
+  under `/presence/residents` would have matched `residents/../clients` and published every
+  endpoint added there later. Nothing behind the gateway is authenticated; exposing who is at
+  home, with a year of history, to whoever reaches the ingress was **accepted by the owner on
+  2026-10-05** — do not re-raise it in reviews, but a new presence endpoint still gets its own
+  entry and its own look at what it exposes.
 
 ## Pending architecture changes (decided 2026-07, executed by the user)
 
@@ -120,9 +127,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
-  (0.6.1), `amx-service` (1.2.2), `presence-service` (0.3.1), `heating-service` (1.4.0) and
-  `water-service` (0.5.0, HAS-178). `1.3.1` is still on `shelly-cloud-service` and
-  `api-gateway-service`;
+  (0.6.1), `amx-service` (1.2.2), `presence-service` (0.4.0), `heating-service` (1.4.0),
+  `water-service` (0.5.0, HAS-178) and `api-gateway-service` (0.3.0). `1.3.1` is still on
+  `shelly-cloud-service`;
   `boiler-service` is on 1.2.0,
   `notification-service` and `ai-service` on 1.1.0. They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
@@ -144,7 +151,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
   current latest is **1.3.0**, on `database-service` (0.6.1), `amx-service` (1.2.2),
-  `presence-service` (0.3.1), `heating-service` (1.4.0) and `water-service` (0.5.0).
+  `presence-service` (0.4.0), `heating-service` (1.4.0) and `water-service` (0.5.0).
   `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
   `shelly-client` migrated and released as **1.0.0**
@@ -306,11 +313,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   released **0.1.0**, 2026-08-13), which makes **every repository in the organization**
   migrated. It is the one place where the missing release train could not simply be dropped —
   the gateway *is* Spring Cloud — so the BOM import is gone and
-  `spring-cloud-starter-gateway-server-webflux` is pinned on its own at **5.0.2**. That pairing
-  is an **accepted risk**: it works because Boot 4.1.0 and 4.0.7 share the Spring Framework
-  7.0.x line, it was verified by hand (context up, route proxies, unmatched path 404s), but it
+  `spring-cloud-starter-gateway-server-webflux` is pinned on its own — at 5.0.2 then, at
+  **5.0.3** since gateway 0.3.0 (2026-10-05, HAS-152), which also moved it to Boot **4.1.1**.
+  That pairing is an **accepted risk**: it works because Boot 4.1.x and the 4.0.x the 2025.1.x
+  train is built against (4.0.8 for 5.0.3) share the Spring Framework 7.0.x line, it is
+  verified by hand (context up, route proxies, unmatched path 404s), but it
   sits outside Spring's compatibility matrix — **re-test the gateway on every bump** of either
-  version, and drop the pin the day a Boot 4.1 train ships.
+  version, and drop the pin the day a Boot 4.1 train ships. The re-test needs no cluster: start
+  the jar with `home,local`, put any HTTP stub on a target's local port and call the route
+  through `localhost:6200` (recipe in the gateway's `CLAUDE.md`).
 
 ## Conventions
 
@@ -330,11 +341,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   Boot release exists, the service being worked on moves to it in that task, together with
   the latest own libraries; the others follow with their next task — there is no org-wide
   bump. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
-  the second and `water-service` (0.5.0) the third, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to report. With it came
+  the second, `water-service` (0.5.0) the third and `api-gateway-service` (0.3.0) the fourth,
+  every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
+  report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
   with `style: json` and header obfuscation. logbook 4.2.0 declares apiguardian 1.1.2 itself,
   so the `apiguardian-api` pin in `dependencyManagement` goes with the bump (dropped in
-  `heating-service` and `water-service`). The one place where a Boot bump is not routine
+  `heating-service`, `water-service` and `api-gateway-service`; `presence-service` still
+  carries it, harmlessly). The one place where a Boot bump is not routine
   is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
 - **Calling a device or gateway outside the cluster** — what `presence-service` learned on
   the UniFi gateway (HAS-149), worth checking in every client of an external system:
