@@ -14,8 +14,8 @@ except `deployment-tools`.
 |---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside: the ingress forwards all of `/home` here and static routes fan out to the services over k8s DNS (HAS-171) |
 | `amx-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) |
-| `heating-service` | 6002 | Heating control |
-| `notification-service` | 6003 | Notifications (Discord bot) |
+| `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Current release **1.6.0** |
+| `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). Current release **0.4.1** |
 | `ai-service` | 6004 | AI integration |
 | `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150) |
 | `water-service` | 6006 | Water control |
@@ -79,8 +79,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   from the broker definitions in `deployment-tools`, no service declares them. The secret
   `rabbitmq` holds one key per broker user, `<user>-password`; user names are not secrets
   (`amx-service` gets `temperature` as a plain value in its manifest).
-- **Silent temperature sensors (HAS-94 — in review on 2026-10-05, `heating-service` PR #23 and
-  `notification-service` PR #10, not released yet).** `heating-service` checks once an hour
+- **Silent temperature sensors (HAS-94, released and deployed on 2026-10-05: `heating-service`
+  1.5.0 → **1.6.0**, `notification-service` 0.3.0 → **0.4.1**).** `heating-service` checks once an hour
   the last stored reading of every room: silent for 24 h → an `alert`, repeated every 24 h,
   and one `info` when readings return; the state is a row per silent sensor in
   `temperature_sensor_alert`, and `heating.sensor-monitor.muted-rooms` takes a retired sensor
@@ -88,7 +88,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `muted` (covered by the gateway's `/heating/**` route). With it `heating-service` becomes a
   **publisher** on `/notification`, over a second connection — and `notification-service`
   finally forwards its queues to the Discord channel `alerts` (until then it only logged
-  them). Three things it taught, worth checking in every service that publishes or consumes:
+  them). Every message carries a third header, `level` (`error` / `warn` / `info`), which the
+  broker does not route by: `notification-service` posts the message as one Discord **embed**
+  — the level is the title, the text the description, the bar red, yellow or green — and a
+  missing or unknown level falls back to the queue (alert → `ERROR`, info → `INFO`). The
+  first alert about a sensor is an `error`, its reminders are `warn`, the recovery `info`.
+  The first run found a real one: the sensor of `bathroom down` had been silent since
+  2026-08-21. Six things it taught, worth checking in every service that publishes, consumes
+  or talks to Discord:
   - A second RabbitMQ connection must **not be a bean**. Any `ConnectionFactory` or
     `RabbitOperations` bean makes `RabbitAutoConfiguration` back off, and the existing
     listener loses its auto-configured connection with everything `spring.rabbitmq.*` sets
@@ -103,6 +110,25 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     attempt can change, then log the message and complete. discord4j hides its answers from
     such a filter: a 5xx arrives wrapped in Reactor's "retries exhausted" after its own
     retries, so the check has to walk the causes.
+  - **Never let discord4j list a server's channels.** `notification-service` 0.3.0 looked the
+    `alerts` channel up by name and delivered nothing: discord4j 3.3.2 could not decode one
+    of the channels (`Optional cannot be cast to Id` in `ChannelData`), and one undecodable
+    channel fails the whole listing. It showed in production, on the first alert, because no
+    test talks to Discord. Since 0.3.1 the channel is configured by id
+    (`discord_alerts_channel_id` in the manifest, not a secret) and the message is posted
+    straight to it, which decodes only the reply to the post.
+  - **What cannot be tested gets tested in the minute after the deploy.** Three things here
+    were unprovable by unit tests — the publish against a real broker, the Discord call, the
+    look of the message — and two of them were wrong on the first try. `GET
+    /home/notification/skippy?message=…&level=…` through a port-forward is the smoke test;
+    run it before the first real message is due, not after.
+  - **The look of a Discord message is the owner's call, made on a real message.** 0.4.0
+    posted the text as plain content with a small embed holding only the level, to keep a
+    push preview and to survive a missing "Embed Links" permission; on the channel it read
+    poorly, and 0.4.1 puts the text inside the embed. Both costs were checked and are fine:
+    the bot has the permission, and the phone notification shows the text. An embed-only
+    message is refused as empty without that permission — remember it if the bot is ever
+    re-invited.
 - Service discovery: Kubernetes-native (k8s Services + DNS). Eureka is gone —
   `service-discovery` was archived and removed from the cluster on 2026-08-13.
 - External traffic: k8s ingress (`/home`) → `api-gateway-service` → internal services. The routes
@@ -164,11 +190,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
-  (0.7.0), `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.4.0),
-  `water-service` (0.5.0, HAS-178) and `api-gateway-service` (0.3.1). `1.3.1` is still on
+  (0.7.0), `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.6.0),
+  `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
+  (0.4.1, since 0.3.0). `1.3.1` is still on
   `shelly-cloud-service`;
   `boiler-service` is on 1.2.0,
-  `notification-service` and `ai-service` on 1.1.0. They move to the latest release with
+  `ai-service` on 1.1.0. They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
   libraries, no-op or not. Every service with a connection pool is on 1.5.1 since
   `water-service` 0.5.0 (2026-10-04), so all four validate their connections on acquire.
@@ -188,7 +215,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
   current latest is **1.3.0**, on `database-service` (0.7.0), `amx-service` (1.2.2),
-  `presence-service` (0.6.0), `heating-service` (1.4.0) and `water-service` (0.5.0).
+  `presence-service` (0.6.0), `heating-service` (1.6.0) and `water-service` (0.5.0).
   `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
   `shelly-client` migrated and released as **1.0.0**
@@ -379,12 +406,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   the latest own libraries; the others follow with their next task — there is no org-wide
   bump. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
   the second, `water-service` (0.5.0) the third, `api-gateway-service` (0.3.0) the fourth and
-  `database-service` (0.7.0, HAS-145) the fifth, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
+  `database-service` (0.7.0, HAS-145) the fifth and `notification-service` (0.3.0, HAS-94) the
+  sixth, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
   report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
   with `style: json` and header obfuscation. logbook 4.2.0 declares apiguardian 1.1.2 itself,
   so the `apiguardian-api` pin in `dependencyManagement` goes with the bump (dropped in
-  `heating-service`, `water-service`, `api-gateway-service` and `database-service`;
+  `heating-service`, `water-service`, `api-gateway-service`, `database-service` and
+  `notification-service`;
   `presence-service` still
   carries it, harmlessly). The one place where a Boot bump is not routine
   is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
@@ -506,7 +535,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   reuses a JVM across classes, one such context installs the structured encoder for the plain
   unit tests that follow — which is why the output looks randomly mixed. `@ActiveProfiles`
   still wins over the system property (they do not merge), so a test can opt into another
-  profile. Done in `heating-service`, `database-service` and `water-service` (HAS-146); the
+  profile. Done in `heating-service`, `database-service` and `water-service` (HAS-146) and in
+  `notification-service` (HAS-94); the
   other services still have the split. `heating-service` (HAS-160, released 1.2.0) is the
   first service on this scheme, `boiler-service` (HAS-161, released 1.2.0) the second,
   `water-service` (HAS-162, released 0.3.0) the third, `database-service` (HAS-163,
