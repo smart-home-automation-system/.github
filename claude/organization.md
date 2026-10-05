@@ -67,6 +67,42 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 
 - Reactive stack everywhere: Spring WebFlux, no blocking calls in service code.
 - Async messaging via RabbitMQ: `amx-service`, `heating-service`, `notification-service`.
+  Two virtual hosts, one broker user each: `/temperature` (user `temperature`; `amx-service`
+  publishes `TemperatureMessage` to the fanout exchange `temperature.events`,
+  `heating-service` consumes `temperature.prod.heating`) and `/notification` (user
+  `notification`; the **headers** exchange `notification` routes by the `category`
+  (`alert` / `info`) and `env` (`prod` / `dev`) headers into `notification.<env>.<category>`,
+  the routing key is ignored, and the payload is **plain text** — `notification-service`
+  reads it as a `String`). The queues there have a one-hour TTL and no dead-letter queue
+  (accepted by the owner on 2026-10-05): a notification that cannot be delivered ends in the
+  log at ERROR, so a publisher that cares repeats it. The exchanges, queues and bindings come
+  from the broker definitions in `deployment-tools`, no service declares them. The secret
+  `rabbitmq` holds one key per broker user, `<user>-password`; user names are not secrets
+  (`amx-service` gets `temperature` as a plain value in its manifest).
+- **Silent temperature sensors (HAS-94 — in review on 2026-10-05, `heating-service` PR #23 and
+  `notification-service` PR #10, not released yet).** `heating-service` checks once an hour
+  the last stored reading of every room: silent for 24 h → an `alert`, repeated every 24 h,
+  and one `info` when readings return; the state is a row per silent sensor in
+  `temperature_sensor_alert`, and `heating.sensor-monitor.muted-rooms` takes a retired sensor
+  out. `GET /home/heating/temperature/sensors` lists `room`, `lastReadingAt`, `stale`,
+  `muted` (covered by the gateway's `/heating/**` route). With it `heating-service` becomes a
+  **publisher** on `/notification`, over a second connection — and `notification-service`
+  finally forwards its queues to the Discord channel `alerts` (until then it only logged
+  them). Three things it taught, worth checking in every service that publishes or consumes:
+  - A second RabbitMQ connection must **not be a bean**. Any `ConnectionFactory` or
+    `RabbitOperations` bean makes `RabbitAutoConfiguration` back off, and the existing
+    listener loses its auto-configured connection with everything `spring.rabbitmq.*` sets
+    on it. Build the factory and the template by hand inside the publisher's bean method and
+    switch observation on there (`setObservationEnabled` + `setApplicationContext`).
+  - A `send` that returns proves nothing: the broker confirms an unroutable message too.
+    Publishing that drives state needs correlated confirms **and** mandatory returns, and
+    the state is written only after both say the message is in a queue.
+  - A `@RabbitListener` returning `Mono` that signals an error makes the container hand the
+    message back, and the broker redelivers it at once — a tight loop for as long as the
+    downstream is unavailable. Retry inside the chain with a backoff, only what another
+    attempt can change, then log the message and complete. discord4j hides its answers from
+    such a filter: a 5xx arrives wrapped in Reactor's "retries exhausted" after its own
+    retries, so the check has to walk the causes.
 - Service discovery: Kubernetes-native (k8s Services + DNS). Eureka is gone —
   `service-discovery` was archived and removed from the cluster on 2026-08-13.
 - External traffic: k8s ingress (`/home`) → `api-gateway-service` → internal services. The routes
