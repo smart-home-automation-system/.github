@@ -21,7 +21,7 @@ except `deployment-tools`.
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
-| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Since **0.4.0** (2026-10-05, HAS-152) it has a reporting API: `GET /home/presence/residents/presence` (every active member with `present`, `since`, `lastCheckedAt`) and `GET /home/presence/residents/{name}/report?from=&to=` (the periods at home within a range of at most 366 days, local date-times, the one still going on marked `open`) — residents are identified by **name**, there is no id. Both are routed by the gateway; the diagnostic `GET /home/presence/clients` (every MAC address on the network) is deliberately **not**. Current release **0.4.0**; statistics, notifications and retention are to come (HAS-153, HAS-154) |
+| `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Since **0.4.0** (2026-10-05, HAS-152) it has a reporting API: `GET /home/presence/residents/presence` (every active member with `present`, `since`, `lastCheckedAt`) and `GET /home/presence/residents/{name}/report?from=&to=` (the periods at home within a range of at most 366 days, local date-times, the one still going on marked `open`) — residents are identified by **name**, there is no id. **0.5.0** (2026-10-05, HAS-153) added the aggregates: `GET /home/presence/residents/{name}/report/daily` (per day `secondsAtHome`, `firstArrival`, `lastDeparture`, `presencePercentage`) and `GET /home/presence/house/report` (one timeline of occupied / empty stretches, per day `secondsOccupied`, `secondsEmpty`, `wasEmpty`). Both cover only what was observed and name the bounds (`observedFrom`, `observedUntil`); a member inside their grace period keeps the house occupied (the report asks the tracker), while an outage across a status change still reads as empty — know that before acting on `wasEmpty`. All four reports are routed by the gateway; the diagnostic `GET /home/presence/clients` (every MAC address on the network) is deliberately **not**. Current release **0.5.0**; notifications and retention are to come (HAS-154) |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 `amx-service` (AMX hardware bridge).
@@ -77,11 +77,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **only scheme, host and port** onto the incoming URI — the path part of a route's `uri(...)` is
   discarded, so a target mounted elsewhere needs `rewritePath`, not a longer URI string.
   `notification-service` is deliberately not routed: its `/home/notification/skippy` endpoint has no
-  external consumer. `presence-service` is routed as an **allowlist** (gateway 0.3.0, HAS-152) —
-  exactly its two report reads, `GET` only — because it also serves `/home/presence/clients`,
+  external consumer. `presence-service` is routed as an **allowlist** (gateway 0.3.0, HAS-152;
+  four reads since 0.3.1, HAS-153) — exactly its report reads, `GET` only — because it also serves `/home/presence/clients`,
   which must stay inside: `PathPattern` matches the raw, un-normalised path, so a `/**` tail
   under `/presence/residents` would have matched `residents/../clients` and published every
-  endpoint added there later. Nothing behind the gateway is authenticated; exposing who is at
+  endpoint added there later. So **every new endpoint of `presence-service` needs a gateway
+  change and release of its own** to be reachable from outside. Nothing behind the gateway is authenticated; exposing who is at
   home, with a year of history, to whoever reaches the ingress was **accepted by the owner on
   2026-10-05** — do not re-raise it in reviews, but a new presence endpoint still gets its own
   entry and its own look at what it exposes.
@@ -127,8 +128,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
-  (0.6.1), `amx-service` (1.2.2), `presence-service` (0.4.0), `heating-service` (1.4.0),
-  `water-service` (0.5.0, HAS-178) and `api-gateway-service` (0.3.0). `1.3.1` is still on
+  (0.6.1), `amx-service` (1.2.2), `presence-service` (0.5.0), `heating-service` (1.4.0),
+  `water-service` (0.5.0, HAS-178) and `api-gateway-service` (0.3.1). `1.3.1` is still on
   `shelly-cloud-service`;
   `boiler-service` is on 1.2.0,
   `notification-service` and `ai-service` on 1.1.0. They move to the latest release with
@@ -151,7 +152,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
   current latest is **1.3.0**, on `database-service` (0.6.1), `amx-service` (1.2.2),
-  `presence-service` (0.4.0), `heating-service` (1.4.0) and `water-service` (0.5.0).
+  `presence-service` (0.5.0), `heating-service` (1.4.0) and `water-service` (0.5.0).
   `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
   `shelly-client` migrated and released as **1.0.0**
