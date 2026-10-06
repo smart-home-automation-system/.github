@@ -50,8 +50,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.1.0** (2026-10-06, HAS-188) — the
-  application shell and the delivery pipeline, deployed; the dashboards follow from the Jira
+  reviewed and merged by the user. Current release **0.2.0** (2026-10-06, HAS-189 — the
+  interface in English and Polish) on top of 0.1.0 (HAS-188 — the application shell and the
+  delivery pipeline), deployed; the dashboards follow from the Jira
   plan (epics HAS-184 foundation, HAS-185 heating / hot water / boiler room, HAS-186 personal
   room view on the phone, HAS-187 presence and household administration; frontend tasks carry
   the label `frontend`, the backend tasks they wait for sit in the same epics). What is decided
@@ -78,7 +79,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     separation of roles is UI-only until the gateway validates tokens (two phases, accepted by
     the owner on 2026-10-06 — access is LAN / VPN only). Residents only **view** temperatures
     and schedules; setting them is the admin's alone.
-  - Interface in English by default, Polish selectable at runtime; colours follow the season.
+  - **Two languages since 0.2.0**: English by default — on a first visit always, whatever the
+    browser says — and Polish chosen in the toolbar, without a reload, remembered in the browser
+    (Transloco; English in the bundle, Polish downloaded on choice). Three things it settled,
+    with the owner's word on the first two (2026-10-06): English formats dates as **en-GB**
+    (24-hour clock); a **temperature is written with its symbol**, `°C`, never through `Intl`'s
+    unit style, which prints Polish degrees as `st. C`; and **text from outside is never a
+    translation parameter** — Transloco searches the substituted text for placeholders again,
+    so a backend message containing `{{ message }}` froze the tab until such text was printed
+    literally. The backend's own messages stay in English, as everywhere.
+  - Colours will follow the season (HAS-190).
 - `deployment-tools` — **PRIVATE**: Kubernetes manifests, local `kind` cluster setup,
   pipelines, RabbitMQ config. Private infrastructure details belong here, never in
   public repos.
