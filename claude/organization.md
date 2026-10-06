@@ -194,14 +194,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   message convention below; also the first library release built on Boot 4.1.1) and **1.7.0**
   (2026-10-06, HAS-174 — an optional machine-readable `code` in `ErrorMessage` and
   `DownstreamErrors.read`, see the error contract note below); current
-  latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175) and `amx-service` (1.3.0, 2026-10-06, HAS-176) — every
+  latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175), `amx-service` (1.3.0, 2026-10-06, HAS-176)
+  and `boiler-service` (1.2.1, 2026-10-06, HAS-181) — every
   other consumer takes it with its next task.
   **1.5.1** is on `presence-service` (0.6.0), `heating-service` (1.6.0),
   `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
   (0.4.1, since 0.3.0). `1.3.1` is still on
-  `shelly-cloud-service`;
-  `boiler-service` is on 1.2.0,
-  `ai-service` on 1.1.0. They move to the latest release with
+  `shelly-cloud-service`,
+  `ai-service` is on 1.1.0. They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
   libraries, no-op or not. Every service with a connection pool is on 1.5.1 or later since
   `water-service` 0.5.0 (2026-10-04), so all four validate their connections on acquire.
@@ -221,9 +221,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
   current latest is **1.3.0**, on `database-service` (0.8.0), `amx-service` (1.3.0),
-  `presence-service` (0.6.0), `heating-service` (1.6.0) and `water-service` (0.5.0).
-  `boiler-service` and `shelly-cloud-service` are on
-  1.1.0 and move with their next task.
+  `presence-service` (0.6.0), `heating-service` (1.6.0), `water-service` (0.5.0) and
+  `boiler-service` (1.2.1, HAS-181).
+  `shelly-cloud-service` is on
+  1.1.0 and moves with its next task.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
@@ -416,13 +417,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   for a consumer still on 4.1.0 — the consumer's own parent manages its versions. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
   the second, `water-service` (0.5.0) the third, `api-gateway-service` (0.3.0) the fourth and
   `database-service` (0.7.0, HAS-145) the fifth, `notification-service` (0.3.0, HAS-94) the
-  sixth and `amx-service` (1.3.0, HAS-176) the seventh, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
+  sixth, `amx-service` (1.3.0, HAS-176) the seventh and `boiler-service` (1.2.1, HAS-181) the
+  eighth, every other service (`ai-service`, `shelly-cloud-service`) is still on 4.1.0, so a mixed fleet is the expected state, not drift to
   report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
   with `style: json` and header obfuscation. logbook 4.2.0 declares apiguardian 1.1.2 itself,
   so the `apiguardian-api` pin in `dependencyManagement` goes with the bump (dropped in
-  `heating-service`, `water-service`, `api-gateway-service`, `database-service`, `amx-service` and
-  `notification-service`;
+  `heating-service`, `water-service`, `api-gateway-service`, `database-service`, `amx-service`,
+  `notification-service` and `boiler-service`;
   `presence-service` still
   carries it, harmlessly). The one place where a Boot bump is not routine
   is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
@@ -554,8 +556,17 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     domain constructor then fails inside Jackson, before any filter runs.
   - Tests use `com.squareup.okhttp3:mockwebserver3`, not the legacy `mockwebserver`, which
     drags JUnit 4 onto the classpath (a JUnit 4 test compiles, never runs, build stays
-    green). The trap is still in boiler-, heating-, water- and shelly-cloud-service
-    from the shared scaffold.
+    green). The trap is still in heating-, water- and shelly-cloud-service
+    from the shared scaffold; `boiler-service` left it in 1.2.1 (HAS-181).
+- **A `@SpringBootTest` context schedules whatever the application schedules** (found in
+  HAS-181). The context test of `boiler-service` started the control pass with the real Shelly
+  address, and only the test JVM ending within the 10 s initial delay kept it from switching
+  the relays in the boiler room. Since 1.2.1 `@EnableScheduling` sits on a `SchedulingConfig`
+  under `@Profile("!test")`, the `test` document points the device at `localhost:1`, and the
+  context test carries `@ActiveProfiles("test")` itself — the profile surefire sets does not
+  exist when the class is started from an IDE. Worth checking in every service whose
+  scheduled job writes to a device, a database or a queue. For the same reason a **local run of
+  `boiler-service` drives the real relays**: no profile but `test` moves the Shelly address.
 - **Ports**: in the cluster every service listens on **6200** (application) and exposes
   Actuator on **8200** (`management.server.port` in the `home` profile) — the k8s ingress
   routes only 6200, so Actuator is unreachable from outside; `readinessProbe` /
