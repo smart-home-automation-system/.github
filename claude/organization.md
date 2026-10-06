@@ -20,7 +20,7 @@ except `deployment-tools`.
 | `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150) |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control |
-| `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129) |
+| `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129). Current release **0.1.1** |
 | `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Since **0.4.0** (2026-10-05, HAS-152) it has a reporting API: `GET /home/presence/residents/presence` (every active member with `present`, `since`, `lastCheckedAt`) and `GET /home/presence/residents/{name}/report?from=&to=` (the periods at home within a range of at most 366 days, local date-times, the one still going on marked `open`) — residents are identified by **name**, there is no id. **0.5.0** (2026-10-05, HAS-153) added the aggregates: `GET /home/presence/residents/{name}/report/daily` (per day `secondsAtHome`, `firstArrival`, `lastDeparture`, `presencePercentage`) and `GET /home/presence/house/report` (one timeline of occupied / empty stretches, per day `secondsOccupied`, `secondsEmpty`, `wasEmpty`). Both cover only what was observed and name the bounds (`observedFrom`, `observedUntil`); a member inside their grace period keeps the house occupied (the report asks the tracker), while an outage across a status change still reads as empty — know that before acting on `wasEmpty`. All four reports are routed by the gateway; the diagnostic `GET /home/presence/clients` (every MAC address on the network) is deliberately **not**. **0.6.0** (2026-10-05, HAS-154) closed the scope of the epic with the retention: every night at 03:00 the rows **last checked** more than `presence.retention` ago (`P365D`; 7 days to ten years, a bare number is days) are deleted — by the last check, so the current row of a watched member always survives — and the statistics never count anything before that horizon as observed. Current release **0.6.0**; notifications are not planned yet |
 
 Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
@@ -195,13 +195,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-10-06, HAS-174 — an optional machine-readable `code` in `ErrorMessage` and
   `DownstreamErrors.read`, see the error contract note below); current
   latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175), `amx-service` (1.3.0, 2026-10-06, HAS-176),
-  `boiler-service` (1.2.1, 2026-10-06, HAS-181) and `ai-service` (0.2.1, 2026-10-06,
-  HAS-182) — every
-  other consumer takes it with its next task.
+  `boiler-service` (1.2.1, 2026-10-06, HAS-181), `ai-service` (0.2.1, 2026-10-06, HAS-182) and
+  `shelly-cloud-service` (0.1.1, 2026-10-06, HAS-183) — every other consumer takes it with its next task.
   **1.5.1** is on `presence-service` (0.6.0), `heating-service` (1.6.0),
   `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
-  (0.4.1, since 0.3.0). `1.3.1` is still on
-  `shelly-cloud-service`. They move to the latest release with
+  (0.4.1, since 0.3.0). They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
   libraries, no-op or not. Every service with a connection pool is on 1.5.1 or later since
   `water-service` 0.5.0 (2026-10-04), so all four validate their connections on acquire.
@@ -221,10 +219,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
   current latest is **1.3.0**, on `database-service` (0.8.0), `amx-service` (1.3.0),
-  `presence-service` (0.6.0), `heating-service` (1.6.0), `water-service` (0.5.0) and
-  `boiler-service` (1.2.1, HAS-181).
-  `shelly-cloud-service` is on
-  1.1.0 and moves with its next task.
+  `presence-service` (0.6.0), `heating-service` (1.6.0), `water-service` (0.5.0),
+  `boiler-service` (1.2.1, HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183) — every consumer.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
@@ -418,13 +414,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   the second, `water-service` (0.5.0) the third, `api-gateway-service` (0.3.0) the fourth and
   `database-service` (0.7.0, HAS-145) the fifth, `notification-service` (0.3.0, HAS-94) the
   sixth, `amx-service` (1.3.0, HAS-176) the seventh, `boiler-service` (1.2.1, HAS-181) the
-  eighth and `ai-service` (0.2.1, HAS-182) the ninth; only `shelly-cloud-service` is still on 4.1.0, so a mixed fleet is the expected state, not drift to
-  report. With it came
+  eighth and `ai-service` (0.2.1, HAS-182) the ninth and `shelly-cloud-service` (0.1.1, HAS-183) the tenth
+  and last. Every service is on 4.1.1 today; after the next Boot release a mixed fleet is again
+  the expected state, not drift to report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
   with `style: json` and header obfuscation. logbook 4.2.0 declares apiguardian 1.1.2 itself,
   so the `apiguardian-api` pin in `dependencyManagement` goes with the bump (dropped in
   `heating-service`, `water-service`, `api-gateway-service`, `database-service`, `amx-service`,
-  `notification-service`, `boiler-service` and `ai-service`;
+  `notification-service`, `boiler-service`, `ai-service` and `shelly-cloud-service`;
   `presence-service` still
   carries it, harmlessly). The one place where a Boot bump is not routine
   is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
@@ -556,8 +553,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     domain constructor then fails inside Jackson, before any filter runs.
   - Tests use `com.squareup.okhttp3:mockwebserver3`, not the legacy `mockwebserver`, which
     drags JUnit 4 onto the classpath (a JUnit 4 test compiles, never runs, build stays
-    green). The trap is still in heating-, water- and shelly-cloud-service
-    from the shared scaffold; `boiler-service` left it in 1.2.1 (HAS-181).
+    green). The trap is still in heating- and water-service
+    from the shared scaffold; `boiler-service` left it in 1.2.1 (HAS-181) and
+    `shelly-cloud-service` in 0.1.1 (HAS-183).
 - **A `@SpringBootTest` context schedules whatever the application schedules** (found in
   HAS-181). The context test of `boiler-service` started the control pass with the real Shelly
   address, and only the test JVM ending within the 10 s initial delay kept it from switching
@@ -617,7 +615,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   unit tests that follow — which is why the output looks randomly mixed. `@ActiveProfiles`
   still wins over the system property (they do not merge), so a test can opt into another
   profile. Done in `heating-service`, `database-service` and `water-service` (HAS-146) and in
-  `notification-service` (HAS-94), in `boiler-service` (HAS-181) and `ai-service` (HAS-182) —
+  `notification-service` (HAS-94), in `boiler-service` (HAS-181), `ai-service` (HAS-182) and
+  `shelly-cloud-service` (HAS-183) —
   there the context-starting test classes also carry `@ActiveProfiles("test")`, because the
   surefire property does not exist when a class is started from an IDE; the
   other services still have the split. `heating-service` (HAS-160, released 1.2.0) is the
