@@ -14,8 +14,8 @@ except `deployment-tools`.
 |---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside: the ingress forwards all of `/home` here and static routes fan out to the services over k8s DNS (HAS-171) |
 | `amx-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) |
-| `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Current release **1.7.0** |
-| `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.2** |
+| `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Current release **1.7.1** |
+| `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.3** |
 | `ai-service` | 6004 | AI integration |
 | `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150) |
 | `water-service` | 6006 | Water control |
@@ -105,6 +105,17 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   from the broker definitions in `deployment-tools`, no service declares them. The secret
   `rabbitmq` holds one key per broker user, `<user>-password`; user names are not secrets
   (`amx-service` gets `temperature` as a plain value in its manifest).
+- **A RabbitMQ connection is named after its pod** (HAS-106, 2026-10-06; `amx-service` 1.3.1,
+  `heating-service` 1.7.1, `notification-service` 0.4.3): the management UI shows
+  `heating-service-69bccdf7f9-xzfxt`, which tells the old pod from the new one during a
+  rollout. Each service has the same small `ConnectionNameStrategy` bean in its `RabbitConfig`
+  — three copies, accepted by the owner for now, a candidate for `cholewa-commons`. It takes
+  `HOSTNAME` **only when it starts with `spring.application.name`**: outside Kubernetes the
+  variable is not simply missing — Git Bash, Linux shells and plain Docker set it to a
+  workstation name or a container id, and an empty value bypasses a placeholder default —
+  so everything else becomes `<service>-local`. A second connection of the same pod adds what
+  it is for (`<pod>/notification` in `heating-service`, opened on the first publish). A new
+  service that talks to the broker copies the bean.
 - **Silent temperature sensors (HAS-94, released and deployed on 2026-10-05: `heating-service`
   1.5.0 → **1.6.0**, `notification-service` 0.3.0 → **0.4.1**).** `heating-service` checks once an hour
   the last stored reading of every room: silent for 24 h → an `alert`, repeated every 24 h,
