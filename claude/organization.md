@@ -194,14 +194,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   message convention below; also the first library release built on Boot 4.1.1) and **1.7.0**
   (2026-10-06, HAS-174 — an optional machine-readable `code` in `ErrorMessage` and
   `DownstreamErrors.read`, see the error contract note below); current
-  latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175), `amx-service` (1.3.0, 2026-10-06, HAS-176)
-  and `boiler-service` (1.2.1, 2026-10-06, HAS-181) — every
+  latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175), `amx-service` (1.3.0, 2026-10-06, HAS-176),
+  `boiler-service` (1.2.1, 2026-10-06, HAS-181) and `ai-service` (0.2.1, 2026-10-06,
+  HAS-182) — every
   other consumer takes it with its next task.
   **1.5.1** is on `presence-service` (0.6.0), `heating-service` (1.6.0),
   `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
   (0.4.1, since 0.3.0). `1.3.1` is still on
-  `shelly-cloud-service`,
-  `ai-service` is on 1.1.0. They move to the latest release with
+  `shelly-cloud-service`. They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
   libraries, no-op or not. Every service with a connection pool is on 1.5.1 or later since
   `water-service` 0.5.0 (2026-10-04), so all four validate their connections on acquire.
@@ -417,14 +417,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   for a consumer still on 4.1.0 — the consumer's own parent manages its versions. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
   the second, `water-service` (0.5.0) the third, `api-gateway-service` (0.3.0) the fourth and
   `database-service` (0.7.0, HAS-145) the fifth, `notification-service` (0.3.0, HAS-94) the
-  sixth, `amx-service` (1.3.0, HAS-176) the seventh and `boiler-service` (1.2.1, HAS-181) the
-  eighth, every other service (`ai-service`, `shelly-cloud-service`) is still on 4.1.0, so a mixed fleet is the expected state, not drift to
+  sixth, `amx-service` (1.3.0, HAS-176) the seventh, `boiler-service` (1.2.1, HAS-181) the
+  eighth and `ai-service` (0.2.1, HAS-182) the ninth; only `shelly-cloud-service` is still on 4.1.0, so a mixed fleet is the expected state, not drift to
   report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
   with `style: json` and header obfuscation. logbook 4.2.0 declares apiguardian 1.1.2 itself,
   so the `apiguardian-api` pin in `dependencyManagement` goes with the bump (dropped in
   `heating-service`, `water-service`, `api-gateway-service`, `database-service`, `amx-service`,
-  `notification-service` and `boiler-service`;
+  `notification-service`, `boiler-service` and `ai-service`;
   `presence-service` still
   carries it, harmlessly). The one place where a Boot bump is not routine
   is `api-gateway-service`, whose hand-pinned Spring Cloud starter has to be re-tested.
@@ -617,7 +617,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   unit tests that follow — which is why the output looks randomly mixed. `@ActiveProfiles`
   still wins over the system property (they do not merge), so a test can opt into another
   profile. Done in `heating-service`, `database-service` and `water-service` (HAS-146) and in
-  `notification-service` (HAS-94); the
+  `notification-service` (HAS-94), in `boiler-service` (HAS-181) and `ai-service` (HAS-182) —
+  there the context-starting test classes also carry `@ActiveProfiles("test")`, because the
+  surefire property does not exist when a class is started from an IDE; the
   other services still have the split. `heating-service` (HAS-160, released 1.2.0) is the
   first service on this scheme, `boiler-service` (HAS-161, released 1.2.0) the second,
   `water-service` (HAS-162, released 0.3.0) the third, `database-service` (HAS-163,
