@@ -14,7 +14,7 @@ except `deployment-tools`.
 |---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside: the ingress forwards all of `/home` here and static routes fan out to the services over k8s DNS (HAS-171) |
 | `amx-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) |
-| `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Current release **1.6.0** |
+| `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Current release **1.7.0** |
 | `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). Current release **0.4.1** |
 | `ai-service` | 6004 | AI integration |
 | `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150) |
@@ -195,11 +195,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (2026-10-06, HAS-174 — an optional machine-readable `code` in `ErrorMessage` and
   `DownstreamErrors.read`, see the error contract note below); current
   latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175), `amx-service` (1.3.0, 2026-10-06, HAS-176),
-  `boiler-service` (1.2.1, 2026-10-06, HAS-181), `ai-service` (0.2.1, 2026-10-06, HAS-182) and
-  `shelly-cloud-service` (0.1.1, 2026-10-06, HAS-183) — every other consumer takes it with its next task.
-  **1.5.1** is on `presence-service` (0.6.0), `heating-service` (1.6.0),
-  `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
-  (0.4.1, since 0.3.0). They move to the latest release with
+  `boiler-service` (1.2.1, 2026-10-06, HAS-181), `ai-service` (0.2.1, 2026-10-06, HAS-182),
+  `shelly-cloud-service` (0.1.1, 2026-10-06, HAS-183), `heating-service` (1.7.0, 2026-10-06,
+  HAS-169) and `water-service` (0.5.1, 2026-10-06, HAS-169) — every other consumer takes it
+  with its next task.
+  **1.5.1** is on `presence-service` (0.6.0), `api-gateway-service` (0.3.1) and
+  `notification-service` (0.4.1, since 0.3.0). They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
   libraries, no-op or not. Every service with a connection pool is on 1.5.1 or later since
   `water-service` 0.5.0 (2026-10-04), so all four validate their connections on acquire.
@@ -218,8 +219,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
-  current latest is **1.3.0**, on `database-service` (0.8.0), `amx-service` (1.3.0),
-  `presence-service` (0.6.0), `heating-service` (1.6.0), `water-service` (0.5.0),
+  current latest is **1.3.0**, on `database-service` (0.8.1), `amx-service` (1.3.0),
+  `presence-service` (0.6.0), `heating-service` (1.7.0), `water-service` (0.5.1),
   `boiler-service` (1.2.1, HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183) — every consumer.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
@@ -282,14 +283,41 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `R2dbcAutoConfiguration` backs off once such a bean exists — so it has to be wrapped in
   `io.r2dbc.pool.ConnectionPool` with a bounded `maxSize` and declared as
   `@Bean(destroyMethod = "dispose")`; the managed database allows 22 backend connections in
-  total, today split heating 4 / database 6 / water 4 / presence 2 — 16 allotted, 6 free for
-  Flyway (a JDBC connection at every start), database tools and the low-traffic `reporter`
-  database on the same cluster. The limit belongs to the **whole cluster, not to this
+  total, split **heating 2 / database 4 / water 2 / presence 2 — 10 allotted, 12 free** since
+  HAS-169 (2026-10-06; 4 / 6 / 4 / 2 before) for Flyway (a JDBC connection at every start),
+  database tools, the low-traffic `reporter` database on the same cluster and services to
+  come. The 22 is `max_connections` 25 minus 3 `superuser_reserved_connections`, read from
+  `pg_settings`. **The split is sized for rollouts, not for the steady state**: the three
+  Deployments keep the default RollingUpdate (owner's decision — no downtime, smaller pools
+  instead of `Recreate`), so during a rollout the old and the new pod each hold a pool and
+  Flyway adds one connection that no `r2dbc_pool_*` metric shows. One rollout is at most
+  10 + 4 + 1 = 15, all three at once 21 — a margin, not an invitation: services with a
+  database are still deployed one at a time. Raising any pool means re-doing that sum, and
+  each service pins its size with a test (`*ApplicationTest`), because the library default
+  of 4 no longer equals anyone's share but `database-service`'s. Three things HAS-169 taught:
+  - **"Prefetch below the pool size" was a rule without a reason.** A `heating-service`
+    message holds a connection only while its reading is saved and then spends its time in the
+    Shelly calls, so the prefetch stays 3 over a pool of 2. A prefetch of 1 would have made
+    the whole chain serial — one slow relay holding up the readings of every room. Check what
+    an in-flight message actually holds before tying two numbers together.
+  - **A timeout turns "slow" into "failed" — look at what the failure path cancels.** The
+    Shelly `WebClient` of `heating-service` had no timeout at all; adding one (1.7.0) would
+    have let one slow relay cancel the other actors of its room and skip the furnace flag and
+    the floor pump, because the chain was fail-fast. Each actor now has its own
+    `onErrorResume`, for device failures only (`boiler-service` learned the same in HAS-128).
+    The timeouts are a validated properties record with a unit, a lower **and** an upper
+    bound — "5000" meant as milliseconds would otherwise bind as 83 minutes.
+  - **Measuring `pg_stat_activity` through the DataGrip MCP costs a connection per query**:
+    every call opens a session that stays idle until the data source is deactivated — eight
+    samples held eight of the 22 connections. Take one sample at the peak of a rollout (the
+    new pod started, the old one still there), not a series.
+  The SANCTUM room has a radiator `heating-service` must not drive: it is switched by a scene
+  in the Shelly cloud, so the missing relay entry there is deliberate. The limit belongs to the **whole cluster, not to this
   project**: on 2026-10-03 the server ran out (`53300 remaining connection slots are
   reserved`) because an unrelated application held 10 connections next to pools sized for 21;
   its databases were removed from the cluster the same day, `presence-service` 0.3.1 went
   from 3 to 2 and `heating-service` 1.4.0 from 8 to 4 (it used 1-2; its RabbitMQ `prefetch`
-  went 5 → 3, because the prefetch has to stay below the pool size). `database-service` got its pool in
+  went 5 → 3 on the belief that the prefetch has to stay below the pool size — see HAS-169 above). `database-service` got its pool in
   HAS-163 (released 0.5.1) — the missing pool only became visible when Actuator arrived,
   because `ConnectionFactoryHealthIndicator` answered every `/actuator/health` call with a
   fresh physical connection; `r2dbc_pool_*` on `/actuator/prometheus` now makes the budget
