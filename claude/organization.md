@@ -176,7 +176,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. It has since had nine releases — **1.0.1** (2026-07-23, HAS-131 —
+  own migration. It has since had ten releases — **1.0.1** (2026-07-23, HAS-131 —
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
   (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`), **1.2.0**
   (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500),
@@ -189,10 +189,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   moved** — `DataIntegrityViolationException` keeps the 400 it got in 1.2.0), **1.5.0**
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
   below), **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
-  describe the actual, gradual recovery) and **1.6.0** (2026-10-06, HAS-180 — Bean Validation
+  describe the actual, gradual recovery), **1.6.0** (2026-10-06, HAS-180 — Bean Validation
   messages pinned to the root bundle, English for the built-in constraints, see the error
-  message convention below; also the first library release built on Boot 4.1.1); current
-  latest is **1.6.0**, on no service yet — every consumer takes it with its next task.
+  message convention below; also the first library release built on Boot 4.1.1) and **1.7.0**
+  (2026-10-06, HAS-174 — an optional machine-readable `code` in `ErrorMessage` and
+  `DownstreamErrors.read`, see the error contract note below); current
+  latest is **1.7.0**, on no service yet — every consumer takes it with its next task.
   **1.5.1** is on `database-service`
   (0.7.0), `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.6.0),
   `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
@@ -397,7 +399,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
-  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.6.0**,
+  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.7.0**,
   `smart-home-sdk` **1.3.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
@@ -466,6 +468,31 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   - A customizer bean in a library needs a name no consumer already uses and an explicit
     order: same name → the consumer's context fails on a bean-definition override; no order
     → the library's customizer runs last and overwrites the consumer's.
+- **Errors between services carry a code, and a decoded error keeps its status** (epic
+  HAS-172; the library part is `cholewa-commons` 1.7.0, HAS-174). `ErrorMessage` has an
+  optional `code` — the **name** of an `ErrorId` constant (`ErrorId.codeOf(...)`), absent from
+  the JSON unless a processor sets it — so a caller can tell causes apart without parsing
+  text: a routing 404 and "no such record" are both a 404, and only the second carries a
+  code. `DownstreamErrors.read(ClientResponse)` returns the status of an error response
+  together with its messages (`Errors.httpStatus` is `@JsonIgnore`, so a decoded body never
+  knows its own status) and `hasCode(...)` asks for a cause. Rules that come with it:
+  - **The name of an `ErrorId` constant is wire contract** once a caller branches on it.
+    Renaming it compiles and passes every test of its own service, and silently changes what
+    the caller does. The service owning the enum pins the names with a test.
+  - **Only named causes travel past the first hop, and never their `details`.** The built-in
+    `WebClientResponseExceptionProcessor` relays a downstream message only when it carries a
+    code, as `message` + `code`. `details` is by convention the raw exception text; relayed,
+    a downstream 500's SQL would reach a caller two hops away, from services the gateway does
+    not route. No org service reaches that processor today — every client maps its errors to
+    an exception of its own.
+  - **A helper that promises "the status is never lost" has to survive every body**: none,
+    HTML, JSON of another shape, `"errors":[null]`, a rewritten `Content-Type`, a body that
+    breaks off and one that never ends. Four review passes found one of these each time; the
+    library version reads the body as text, parses it itself, bounds the wait (2 s, below the
+    caller's own call timeout) and has a test per case.
+  - `database-service` sets the codes in HAS-175, `amx-service` relays a 404 only with
+    `NOT_FOUND_DEVICE_CONFIGURATION` in HAS-176; until then nothing in the cluster sends or
+    reads a code.
 - **A constraint on a query parameter or path variable needs no `@Validated`** (HAS-145).
   Since Spring Framework 6.1 WebFlux validates a constrained `@RequestParam` /
   `@PathVariable` itself and raises `HandlerMethodValidationException`. `@Validated` on the
