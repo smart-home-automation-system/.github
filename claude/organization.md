@@ -194,9 +194,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   message convention below; also the first library release built on Boot 4.1.1) and **1.7.0**
   (2026-10-06, HAS-174 — an optional machine-readable `code` in `ErrorMessage` and
   `DownstreamErrors.read`, see the error contract note below); current
-  latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175) alone — every
+  latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175) and `amx-service` (1.3.0, 2026-10-06, HAS-176) — every
   other consumer takes it with its next task.
-  **1.5.1** is on `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.6.0),
+  **1.5.1** is on `presence-service` (0.6.0), `heating-service` (1.6.0),
   `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
   (0.4.1, since 0.3.0). `1.3.1` is still on
   `shelly-cloud-service`;
@@ -220,7 +220,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
-  current latest is **1.3.0**, on `database-service` (0.8.0), `amx-service` (1.2.2),
+  current latest is **1.3.0**, on `database-service` (0.8.0), `amx-service` (1.3.0),
   `presence-service` (0.6.0), `heating-service` (1.6.0) and `water-service` (0.5.0).
   `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
@@ -415,13 +415,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `smart-home-sdk` and `shelly-client` have no Boot parent. A library built on 4.1.1 is fine
   for a consumer still on 4.1.0 — the consumer's own parent manages its versions. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
   the second, `water-service` (0.5.0) the third, `api-gateway-service` (0.3.0) the fourth and
-  `database-service` (0.7.0, HAS-145) the fifth and `notification-service` (0.3.0, HAS-94) the
-  sixth, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
+  `database-service` (0.7.0, HAS-145) the fifth, `notification-service` (0.3.0, HAS-94) the
+  sixth and `amx-service` (1.3.0, HAS-176) the seventh, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
   report. With it came
   logbook **4.2.0** (built against Boot 4.1.1; 4.0.4 elsewhere) — verified on the cluster
   with `style: json` and header obfuscation. logbook 4.2.0 declares apiguardian 1.1.2 itself,
   so the `apiguardian-api` pin in `dependencyManagement` goes with the bump (dropped in
-  `heating-service`, `water-service`, `api-gateway-service`, `database-service` and
+  `heating-service`, `water-service`, `api-gateway-service`, `database-service`, `amx-service` and
   `notification-service`;
   `presence-service` still
   carries it, harmlessly). The one place where a Boot bump is not routine
@@ -495,9 +495,19 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   - `database-service` **sends the codes since 0.8.0** (2026-10-06, HAS-175): one
     `DomainExceptionProcessor(status, ErrorId)` instead of a processor class per exception,
     the names of `CustomErrorDescription` pinned by a test, and the codes listed in its
-    README. Bodies changed only by the added `code`; `amx-service`, still on `cholewa-commons`
-    1.5.1, reads them unchanged (verified on the cluster). Nothing **reads** a code yet —
-    `amx-service` will relay a 404 only with `NOT_FOUND_DEVICE_CONFIGURATION` in HAS-176.
+    README. Bodies changed only by the added `code`; `amx-service` 1.2.2, then on
+    `cholewa-commons` 1.5.1, read them unchanged (verified on the cluster).
+  - `amx-service` **reads the code since 1.3.0** (2026-10-06, HAS-176): its 404 from
+    `database-service` is relayed to the AMX controller only with
+    `NOT_FOUND_DEVICE_CONFIGURATION`; a 404 without it — a renamed path, a broken route — is a
+    502 logged at ERROR, where it used to pass as an unknown data point at WARN. So
+    `amx-service` ≥ 1.3.0 must never run next to a `database-service` below 0.8.0: every
+    unknown data point would read as a 502. The review added three things worth copying into
+    every client of another service: a 502 answers with the downstream status alone and what
+    the failing service said goes to the log (the exception carries the two sets apart); an
+    answer without a body, or JSON that is not the model (`{}` decodes into an object of
+    nulls, `@NotNull` is not enforced on decode), is a failed call, not an empty result; and
+    the test of such a rule asserts the **log level**, because the level is what the alerts see.
 - **A constraint on a query parameter or path variable needs no `@Validated`** (HAS-145).
   Since Spring Framework 6.1 WebFlux validates a constrained `@RequestParam` /
   `@PathVariable` itself and raises `HandlerMethodValidationException`. `@Validated` on the
@@ -544,7 +554,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     domain constructor then fails inside Jackson, before any filter runs.
   - Tests use `com.squareup.okhttp3:mockwebserver3`, not the legacy `mockwebserver`, which
     drags JUnit 4 onto the classpath (a JUnit 4 test compiles, never runs, build stays
-    green). The trap is still in amx-, boiler-, heating-, water- and shelly-cloud-service
+    green). The trap is still in boiler-, heating-, water- and shelly-cloud-service
     from the shared scaffold.
 - **Ports**: in the cluster every service listens on **6200** (application) and exposes
   Actuator on **8200** (`management.server.port` in the `home` profile) — the k8s ingress
