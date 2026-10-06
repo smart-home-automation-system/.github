@@ -176,7 +176,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. It has since had eight releases — **1.0.1** (2026-07-23, HAS-131 —
+  own migration. It has since had nine releases — **1.0.1** (2026-07-23, HAS-131 —
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
   (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`), **1.2.0**
   (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500),
@@ -188,8 +188,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   conflict with existing state, not a malformed request; **only `DuplicateKeyException`
   moved** — `DataIntegrityViolationException` keeps the 400 it got in 1.2.0), **1.5.0**
   (2026-09-27, HAS-150 — the pool validates every connection on acquire, see the pool note
-  below) and **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
-  describe the actual, gradual recovery); current latest is **1.5.1**, on `database-service`
+  below), **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
+  describe the actual, gradual recovery) and **1.6.0** (2026-10-06, HAS-180 — Bean Validation
+  messages pinned to the root bundle, English for the built-in constraints, see the error
+  message convention below; also the first library release built on Boot 4.1.1); current
+  latest is **1.6.0**, on no service yet — every consumer takes it with its next task.
+  **1.5.1** is on `database-service`
   (0.7.0), `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.6.0),
   `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
   (0.4.1, since 0.3.0). `1.3.1` is still on
@@ -393,7 +397,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
-  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.5.1**,
+  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.6.0**,
   `smart-home-sdk` **1.3.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
@@ -404,7 +408,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - **Spring Boot follows the own-library rule (decided 2026-10-01, HAS-149)**: when a newer
   Boot release exists, the service being worked on moves to it in that task, together with
   the latest own libraries; the others follow with their next task — there is no org-wide
-  bump. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
+  bump. **Libraries with a Boot parent follow the same rule** (owner, 2026-10-05, HAS-180):
+  `cholewa-commons` moved to 4.1.1 with 1.6.0, `cholewa-security` moves with its next task;
+  `smart-home-sdk` and `shelly-client` have no Boot parent. A library built on 4.1.1 is fine
+  for a consumer still on 4.1.0 — the consumer's own parent manages its versions. `presence-service` (since 0.2.0) is the first on **4.1.1**, `heating-service` (1.4.0)
   the second, `water-service` (0.5.0) the third, `api-gateway-service` (0.3.0) the fourth and
   `database-service` (0.7.0, HAS-145) the fifth and `notification-service` (0.3.0, HAS-94) the
   sixth, every other service is still on 4.1.0, so a mixed fleet is the expected state, not drift to
@@ -436,8 +443,29 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `ValidationConfigurationCustomizer` replacing the message interpolator with one that ignores
   the locale — it has to be a customizer, because Spring installs its own locale-aware
   interpolator and runs the customizers after it — and a test that makes the JVM Polish and
-  expects English. Not yet in the other services; the shared home for it is `cholewa-commons`.
-  A locale-dependent text is a defect to fix, not a caveat to document.
+  expects English. **Since `cholewa-commons` 1.6.0 (HAS-180) the library does it for every
+  consumer**: `ValidationMessagesAutoConfiguration`, on by default, switched off with
+  `cholewa.validation.english-messages: false`. A service taking 1.6.0 needs no code — but
+  `database-service` must delete its own `ValidationMessagesConfig` in the same bump
+  (part of HAS-175): the local copy runs after the library's and puts back the older variant.
+  A locale-dependent text is a defect to fix, not a caveat to document — with **one accepted
+  exception** (owner, 2026-10-05): the validation of `@ConfigurationProperties` at startup
+  still follows the JVM locale, because Boot builds a validator of its own there and the only
+  lever, a global `LocaleContextHolder` default, would change locale resolution for the whole
+  application. It concerns the log of a failed start only, never a response. Three things the
+  library version had to get right, worth knowing before writing anything similar:
+  - Wrap the interpolator Boot builds (`new MessageInterpolatorFactory(applicationContext)`),
+    not `configuration.getDefaultMessageInterpolator()`: the latter drops the `MessageSource`
+    lookup — a `{key}` from `messages.properties` comes out as the literal key — and the
+    fallback for an application without an Expression Language implementation.
+  - Pin `Locale.ROOT`, not `Locale.ENGLISH`: asked for `en`, a bundle lookup that finds no
+    `_en` file falls back to the JVM default *before* the root, so a `_pl` file wins on a
+    Polish machine. Hibernate's own messages hide this, because it ships an empty
+    `ValidationMessages_en.properties`. A test with built-in constraints alone cannot see it;
+    it takes bundles with a `_pl` file and no `_en`.
+  - A customizer bean in a library needs a name no consumer already uses and an explicit
+    order: same name → the consumer's context fails on a bean-definition override; no order
+    → the library's customizer runs last and overwrites the consumer's.
 - **A constraint on a query parameter or path variable needs no `@Validated`** (HAS-145).
   Since Spring Framework 6.1 WebFlux validates a constrained `@RequestParam` /
   `@PathVariable` itself and raises `HandlerMethodValidationException`. `@Validated` on the
