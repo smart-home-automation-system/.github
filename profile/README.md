@@ -5,7 +5,7 @@ It's a microservice application that controls a smart home.
 Spring Boot microservices are using
 
 ![Java](https://img.shields.io/badge/java-21-yellow?style=plastic)
-![SpringBoot](https://img.shields.io/badge/SpringBoot-4.1.0-blue?style=plastic)
+![SpringBoot](https://img.shields.io/badge/SpringBoot-4.1.1-blue?style=plastic)
 
 SpringBoot services are communicating with home system automations like:
 
@@ -105,6 +105,17 @@ SpringBoot services are communicating with home system automations like:
   ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/api-gateway-service?style=plastic)
   ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/api-gateway-service?style=plastic)
   ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/api-gateway-service?style=plastic)
+
+## Frontend
+
+- __[web-application](https://github.com/smart-home-automation-system/web-application)__ (local-port - `4200`) — the dashboard of the house: an Angular application for the desktop and, installed on the home screen, for the phones of the household; it talks only to `api-gateway-service`
+
+  [![CI](https://github.com/smart-home-automation-system/web-application/actions/workflows/CI.yml/badge.svg)](https://github.com/smart-home-automation-system/web-application/actions/workflows/CI.yml)
+  [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=smart-home-automation-system_web-application&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=smart-home-automation-system_web-application)
+  ![GitHub top language](https://img.shields.io/github/languages/top/smart-home-automation-system/web-application?style=plastic)
+  ![GitHub last commit](https://img.shields.io/github/last-commit/smart-home-automation-system/web-application?style=plastic)
+  ![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/smart-home-automation-system/web-application?style=plastic)
+  ![GitHub Release](https://img.shields.io/github/v/release/smart-home-automation-system/web-application?style=plastic)
 
 ## Libraries
 

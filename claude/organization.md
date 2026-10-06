@@ -47,12 +47,38 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `cholewa-commons` and `cholewa-security`, this one lives on the personal `magikabdul`
   account (`magikabdul/amx-tenczynek`), not in the org — the workspace directory is named
   `amx`.
-- `web-application` — Angular + Angular Material frontend (desktop-first, responsive).
-  Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed by the user. Key decisions (details in the repo's `CLAUDE.md`): household-member
-  profiles without login (profile picker persisted in the browser, future JWT-ready),
-  data via polling of `api-gateway-service` behind a per-domain data-access layer
-  (SSE-ready), personalized home page per profile (own room + shortcuts + common areas).
+- `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
+  responsive; on the household's iPhones the same application installed as a PWA, no native
+  app). Claude has full autonomy here, but every change goes through a feature branch and a PR
+  reviewed and merged by the user. Current release **0.1.0** (2026-10-06, HAS-188) — the
+  application shell and the delivery pipeline, deployed; the dashboards follow from the Jira
+  plan (epics HAS-184 foundation, HAS-185 heating / hot water / boiler room, HAS-186 personal
+  room view on the phone, HAS-187 presence and household administration; frontend tasks carry
+  the label `frontend`, the backend tasks they wait for sit in the same epics). What is decided
+  (details in the repo's `CLAUDE.md`):
+  - **One host for the application and the API**, reachable on the LAN / over VPN only: its own
+    Ingress (manifest in `deployment-tools/workshop/`, like the services) sends `/home` to
+    `api-gateway-service` and everything else to the application, so the browser calls the API
+    on its own origin — no CORS, no gateway change. Consequence: **no application route may
+    start with `/home`**, and the host-less `smart-home-ingress` used by the AMX controller is
+    left alone.
+  - **Not a Spring service**: an `nginx-unprivileged` container on **8080**, probes on
+    `/healthz`, no Actuator and no Prometheus annotations; access logs are JSON on stdout, so
+    Loki parses them with `| json` under the same `app` label. Image
+    `magikabdul/web-application`, built inside a multi-stage `Dockerfile`; CI builds the image
+    and tests it in a real browser before it can be released (the nginx configuration and the
+    Content-Security-Policy have no other test).
+  - **The same Definition of Done as a service**, fitted to the frontend: `/code-review` and
+    `/security-review` (no `service-review` — that one is for Spring) recorded on the PR,
+    verification in a browser with screenshots, then release and deploy in every task.
+  - Data via polling of the gateway behind a per-domain data-access layer (SSE-ready); a mock
+    API for development and browser tests, which therefore can never switch a real device.
+  - Household-member profiles without login, chosen by a personal link; a member's **role and
+    rooms live in the household registry** (`database-service`), not in frontend code. The
+    separation of roles is UI-only until the gateway validates tokens (two phases, accepted by
+    the owner on 2026-10-06 — access is LAN / VPN only). Residents only **view** temperatures
+    and schedules; setting them is the admin's alone.
+  - Interface in English by default, Polish selectable at runtime; colours follow the season.
 - `deployment-tools` — **PRIVATE**: Kubernetes manifests, local `kind` cluster setup,
   pipelines, RabbitMQ config. Private infrastructure details belong here, never in
   public repos.
