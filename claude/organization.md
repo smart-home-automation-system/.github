@@ -194,16 +194,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   message convention below; also the first library release built on Boot 4.1.1) and **1.7.0**
   (2026-10-06, HAS-174 — an optional machine-readable `code` in `ErrorMessage` and
   `DownstreamErrors.read`, see the error contract note below); current
-  latest is **1.7.0**, on no service yet — every consumer takes it with its next task.
-  **1.5.1** is on `database-service`
-  (0.7.0), `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.6.0),
+  latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175) alone — every
+  other consumer takes it with its next task.
+  **1.5.1** is on `amx-service` (1.2.2), `presence-service` (0.6.0), `heating-service` (1.6.0),
   `water-service` (0.5.0, HAS-178), `api-gateway-service` (0.3.1) and `notification-service`
   (0.4.1, since 0.3.0). `1.3.1` is still on
   `shelly-cloud-service`;
   `boiler-service` is on 1.2.0,
   `ai-service` on 1.1.0. They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
-  libraries, no-op or not. Every service with a connection pool is on 1.5.1 since
+  libraries, no-op or not. Every service with a connection pool is on 1.5.1 or later since
   `water-service` 0.5.0 (2026-10-04), so all four validate their connections on acquire.
   `cholewa-security` migrated and released as **1.0.0**
   (2026-07-22, HAS-118) — Java 21 bytecode (no code / no Jackson to migrate); no
@@ -220,7 +220,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
   of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
-  current latest is **1.3.0**, on `database-service` (0.7.0), `amx-service` (1.2.2),
+  current latest is **1.3.0**, on `database-service` (0.8.0), `amx-service` (1.2.2),
   `presence-service` (0.6.0), `heating-service` (1.6.0) and `water-service` (0.5.0).
   `boiler-service` and `shelly-cloud-service` are on
   1.1.0 and move with their next task.
@@ -441,15 +441,17 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   and logs, on every machine. The one source that breaks it silently is Bean Validation: a
   violated constraint is worded in the locale of the JVM or the request, so the same request
   reads in Polish on a developer machine and in English in the cluster (the pods run
-  `en_US`). `database-service` (0.7.0) pins it with `ValidationMessagesConfig`, a
-  `ValidationConfigurationCustomizer` replacing the message interpolator with one that ignores
-  the locale — it has to be a customizer, because Spring installs its own locale-aware
-  interpolator and runs the customizers after it — and a test that makes the JVM Polish and
-  expects English. **Since `cholewa-commons` 1.6.0 (HAS-180) the library does it for every
-  consumer**: `ValidationMessagesAutoConfiguration`, on by default, switched off with
-  `cholewa.validation.english-messages: false`. A service taking 1.6.0 needs no code — but
-  `database-service` must delete its own `ValidationMessagesConfig` in the same bump
-  (part of HAS-175): the local copy runs after the library's and puts back the older variant.
+  `en_US`). `database-service` (0.7.0) pinned it first, with a `ValidationMessagesConfig` of
+  its own — a `ValidationConfigurationCustomizer` replacing the message interpolator with one
+  that ignores the locale; it has to be a customizer, because Spring installs its own
+  locale-aware interpolator and runs the customizers after it. **Since `cholewa-commons` 1.6.0
+  (HAS-180) the library does it for every consumer**: `ValidationMessagesAutoConfiguration`,
+  on by default, switched off with `cholewa.validation.english-messages: false`. A service
+  taking 1.6.0 or later needs no code, and `database-service` deleted its local copy with the
+  bump (0.8.0, HAS-175) — it ran after the library's and put back the older variant. What a
+  consumer keeps is a test: the whole context on a Polish JVM expecting English, plus a
+  control with the property switched off — a `@SpringBootTest`, because a `@WebFluxTest`
+  slice does not load the library's auto-configuration.
   A locale-dependent text is a defect to fix, not a caveat to document — with **one accepted
   exception** (owner, 2026-10-05): the validation of `@ConfigurationProperties` at startup
   still follows the JVM locale, because Boot builds a validator of its own there and the only
@@ -490,9 +492,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     breaks off and one that never ends. Four review passes found one of these each time; the
     library version reads the body as text, parses it itself, bounds the wait (2 s, below the
     caller's own call timeout) and has a test per case.
-  - `database-service` sets the codes in HAS-175, `amx-service` relays a 404 only with
-    `NOT_FOUND_DEVICE_CONFIGURATION` in HAS-176; until then nothing in the cluster sends or
-    reads a code.
+  - `database-service` **sends the codes since 0.8.0** (2026-10-06, HAS-175): one
+    `DomainExceptionProcessor(status, ErrorId)` instead of a processor class per exception,
+    the names of `CustomErrorDescription` pinned by a test, and the codes listed in its
+    README. Bodies changed only by the added `code`; `amx-service`, still on `cholewa-commons`
+    1.5.1, reads them unchanged (verified on the cluster). Nothing **reads** a code yet —
+    `amx-service` will relay a 404 only with `NOT_FOUND_DEVICE_CONFIGURATION` in HAS-176.
 - **A constraint on a query parameter or path variable needs no `@Validated`** (HAS-145).
   Since Spring Framework 6.1 WebFlux validates a constrained `@RequestParam` /
   `@PathVariable` itself and raises `HandlerMethodValidationException`. `@Validated` on the
