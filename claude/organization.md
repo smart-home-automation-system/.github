@@ -15,7 +15,7 @@ except `deployment-tools`.
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside: the ingress forwards all of `/home` here and static routes fan out to the services over k8s DNS (HAS-171) |
 | `amx-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) |
 | `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Current release **1.7.0** |
-| `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). Current release **0.4.1** |
+| `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.2** |
 | `ai-service` | 6004 | AI integration |
 | `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150) |
 | `water-service` | 6006 | Water control |
@@ -223,10 +223,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175), `amx-service` (1.3.0, 2026-10-06, HAS-176),
   `boiler-service` (1.2.1, 2026-10-06, HAS-181), `ai-service` (0.2.1, 2026-10-06, HAS-182),
   `shelly-cloud-service` (0.1.1, 2026-10-06, HAS-183), `heating-service` (1.7.0, 2026-10-06,
-  HAS-169) and `water-service` (0.5.1, 2026-10-06, HAS-169) — every other consumer takes it
-  with its next task.
-  **1.5.1** is on `presence-service` (0.6.0), `api-gateway-service` (0.3.1) and
-  `notification-service` (0.4.1, since 0.3.0). They move to the latest release with
+  HAS-169), `water-service` (0.5.1, 2026-10-06, HAS-169) and `notification-service` (0.4.2,
+  2026-10-06, HAS-179) — every other consumer takes it with its next task.
+  **1.5.1** is on `presence-service` (0.6.0) and `api-gateway-service` (0.3.1). They move to the latest release with
   their next task — the rule is that a service always carries the latest release of the own
   libraries, no-op or not. Every service with a connection pool is on 1.5.1 or later since
   `water-service` 0.5.0 (2026-10-04), so all four validate their connections on acquire.
