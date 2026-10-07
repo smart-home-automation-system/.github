@@ -301,16 +301,31 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   which closed the 4 Dependabot jackson-databind alerts. `database-service` adopted it
   during its own migration (HAS-126); `shelly-cloud-service`, the last consumer on the old
   SDK (0.1.x), moved during its own migration (HAS-129), so nothing is left behind.
-  It has since had three feature releases — **1.1.0** (2026-07-28, HAS-136 — `required` on
+  It has since had four feature releases — **1.1.0** (2026-07-28, HAS-136 — `required` on
   the Eaton configuration models, so the generated models carry `@NotNull` and a consumer
   can validate the payload with `@Valid` alone), **1.2.0** (2026-09-27, HAS-149 — the
   household registry models `HouseholdMember` and `MemberPhoneDetails`, with the schema's
-  bounds as `@Size`/`@Pattern`) and **1.3.0** (2026-09-27, HAS-150 — the member's phone in
+  bounds as `@Size`/`@Pattern`), **1.3.0** (2026-09-27, HAS-150 — the member's phone in
   **E.164**, `+48505602702`, because it is an SMS recipient (SMSAPI); strictly a tightening
-  of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0);
-  current latest is **1.3.0**, on `database-service` (0.8.1), `amx-service` (1.3.0),
-  `presence-service` (0.6.0), `heating-service` (1.7.0), `water-service` (0.5.1),
-  `boiler-service` (1.2.1, HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183) — every consumer.
+  of the 1.2.0 contract, released as a minor because nothing had shipped on 1.2.0) and
+  **1.4.0** (2026-10-07, HAS-191 — a member's `role`, the new enum `MemberRole` (`admin` /
+  `resident`), and `rooms`, a `List<RoomName>`; both optional, the contract of the web
+  dashboard's profiles). Two decisions of the owner there, against the first wording of the
+  task and worth repeating in any model that is the body of a partial update: **`role` has no
+  default** — a field with a default reads the same whether the caller left it out or sent
+  it, so a `PATCH` of the phone alone would have turned an admin into a resident (`active`,
+  default `true`, is why `database-service` has separate activate / deactivate operations);
+  a missing role is `null` and the registry decides. And **`rooms` is a list, not
+  `uniqueItems`** — that generates a `Set` whose setter needs a `jackson-databind` annotation
+  the SDK does not have, and without it Jackson fills a `HashSet`, losing the order (for
+  enums it differs between JVM runs); a repeated room is for the registry to refuse. What
+  could not be helped: a missing `rooms` reads as an empty list, so a `PATCH` replaces the
+  rooms. The SDK got its first tests and a `CLAUDE.md` with these traps;
+  current latest is **1.4.0**, not yet on any consumer — `database-service` takes it in
+  HAS-192, the others with their next task (`presence-service` on 1.3.0 was run against the
+  new JSON: it ignores the fields). **1.3.0** is on `database-service` (0.8.1), `amx-service`
+  (1.3.0), `presence-service` (0.6.0), `heating-service` (1.7.0), `water-service` (0.5.1),
+  `boiler-service` (1.2.1, HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183).
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
@@ -514,7 +529,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.7.0**,
-  `smart-home-sdk` **1.3.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
+  `smart-home-sdk` **1.4.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
   `shelly-cloud-service` and `presence-service` — plus `api-gateway-service` are on the
