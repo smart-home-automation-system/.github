@@ -50,9 +50,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.3.0** (2026-10-07, HAS-190 — the MUI
-  look and the seasonal colours) on top of 0.2.0 (HAS-189 — the interface in English and
-  Polish) and 0.1.0 (HAS-188 — the application shell and the delivery pipeline), deployed; the
+  reviewed and merged by the user. Current release **0.4.0** (2026-10-07, HAS-208 — the
+  "Zorza" look) on top of 0.3.0 (HAS-190 — the MUI look and the seasonal colours), 0.2.0
+  (HAS-189 — the interface in English and Polish) and 0.1.0 (HAS-188 — the application shell
+  and the delivery pipeline), deployed; the
   dashboards follow from the Jira
   plan (epics HAS-184 foundation, HAS-185 heating / hot water / boiler room, HAS-186 personal
   room view on the phone, HAS-187 presence and household administration; frontend tasks carry
@@ -89,15 +90,25 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     translation parameter** — Transloco searches the substituted text for placeholders again,
     so a backend message containing `{{ message }}` froze the tab until such text was printed
     literally. The backend's own messages stay in English, as everywhere.
-  - **The look is MUI's, the colours follow the season** (0.3.0, HAS-190). The owner chose the
-    look of https://mui.com/material-ui over Angular Material's own Material 3 on 2026-10-06;
-    the framework stays Angular — the components are Angular Material, restyled through their
-    CSS variables only (`src/theme/_mui.scss`), so nothing was rewritten. Four palettes
-    (spring, summer, autumn, winter), each light and dark, picked by `data-season` on `<html>`
-    from the browser clock (21 Mar / 22 Jun / 23 Sep / 22 Dec), re-read at midnight and at
-    least hourly. A Settings page previews any season and scheme; it is open to everyone until
-    the profiles exist (HAS-193). WCAG AA contrast of all eight variants is a build check
-    (`npm run check:contrast`), in CI.
+  - **The look is "Zorza", the colours follow the season** (0.4.0, HAS-208; the MUI look of
+    0.3.0 / HAS-190 lasted a day). The owner chose it on 2026-10-07 from a style study of five
+    directions: a deep page glowing softly in the two colours of the season, cards of frosted
+    glass (`backdrop-filter`), a fixed colour per domain of the house (heating, hot water,
+    boiler room, household — the same in every season), the navigation in a panel on the left
+    (a bar on top and a bottom bar on the phone), Plus Jakarta Sans self-hosted. The framework
+    stays Angular — the components are Angular Material, restyled through their CSS variables
+    only (`src/theme/_zorza.scss` the look, `_seasons.scss` the colours), so nothing was
+    rewritten. Four palettes (spring green, summer gold, autumn rust, winter blue — summer was
+    sea-teal and indistinguishable from winter), each light and dark, picked by `data-season`
+    on `<html>` from the browser clock (21 Mar / 22 Jun / 23 Sep / 22 Dec), re-read at midnight
+    and at least hourly. A Settings page previews any season and scheme; it is open to everyone
+    until the profiles exist (HAS-193). WCAG AA contrast of all eight variants is a build check
+    (`npm run check:contrast`), in CI — since 0.4.0 on the **composited** colours (glass over
+    the glow, the domain wash), because a translucent surface has no contrast of its own. One
+    thing it taught: Material's component styles are appended after the application's
+    stylesheet, so a rule of equal specificity on a Material class silently loses — restyle
+    through the variables, or with a selector that carries Material's own class. The photo of
+    the view under the glow is the next task (HAS-209).
 - `deployment-tools` — **PRIVATE**: Kubernetes manifests, local `kind` cluster setup,
   pipelines, RabbitMQ config. Private infrastructure details belong here, never in
   public repos.
