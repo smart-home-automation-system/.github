@@ -17,7 +17,7 @@ except `deployment-tools`.
 | `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Current release **1.7.1** |
 | `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.3** |
 | `ai-service` | 6004 | AI integration |
-| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150) |
+| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192). Current release **0.9.0** |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control: drives the furnace and both pumps as relays of one Shelly Pro 4. Since 1.3.0 (2026-10-07, HAS-109) it also tells the household when that Shelly stops working — an alert once its calls have been failing for 5 minutes, a reminder every hour, an info when it works again — which makes it a publisher on the `/notification` virtual host. Current release **1.3.0** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129). Current release **0.1.1** |
@@ -319,13 +319,33 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `uniqueItems`** — that generates a `Set` whose setter needs a `jackson-databind` annotation
   the SDK does not have, and without it Jackson fills a `HashSet`, losing the order (for
   enums it differs between JVM runs); a repeated room is for the registry to refuse. What
-  could not be helped: a missing `rooms` reads as an empty list, so a `PATCH` replaces the
-  rooms. The SDK got its first tests and a `CLAUDE.md` with these traps;
-  current latest is **1.4.0**, not yet on any consumer — `database-service` takes it in
-  HAS-192, the others with their next task (`presence-service` on 1.3.0 was run against the
-  new JSON: it ignores the fields). **1.3.0** is on `database-service` (0.8.1), `amx-service`
-  (1.3.0), `presence-service` (0.6.0), `heating-service` (1.7.0), `water-service` (0.5.1),
-  `boiler-service` (1.2.1, HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183).
+  could not be helped: a missing `rooms` reads as an empty list — which is why
+  `database-service` gave the rooms an endpoint of their own instead of honouring them in
+  `PATCH` (below). The SDK got its first tests and a `CLAUDE.md` with these traps;
+  current latest is **1.4.0**, on `database-service` (0.9.0, 2026-10-07, HAS-192); the
+  others take it with their next task (`presence-service` on 1.3.0 was run against the new
+  JSON: it ignores the fields). **1.3.0** is on `amx-service` (1.3.0), `presence-service`
+  (0.6.0), `heating-service` (1.7.0), `water-service` (0.5.1), `boiler-service` (1.2.1,
+  HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183).
+  **`database-service` 0.9.0 (HAS-192, deployed 2026-10-07) stores and serves both.**
+  `GET /home/household` answers every member with a `role` (always) and `rooms` (left out
+  when empty — read a missing `rooms` as none); `POST` takes both, and a member registered
+  without a role is a `resident`; `PATCH` changes the role only when the body names one and
+  never the rooms; **`PUT /home/household/member/{name}/rooms`** replaces them with a JSON
+  array in display order (`[]` clears). A room listed twice or `null` among them is a 400
+  with the code `INVALID_HOUSEHOLD_MEMBER`; an unknown role or room is a 400 `Malformed
+  request body` naming the value, without a code. Stored as the constant names (`ADMIN`,
+  `LIVING_ROOM`), the rooms in an array column (`V11`) — so **renaming or removing a
+  `RoomName` or `MemberRole` constant needs a migration of the rows there**, or reading the
+  registry fails (true of `eaton_devices` since ever). Two things a client has to respect:
+  every write is the whole row, so the calls for one member go **one after the other**
+  (`PATCH` and `PUT …/rooms` fired together can undo each other, both answering 200); and
+  nothing automated tests the array mapping yet (HAS-207, Testcontainers). The migration was
+  rehearsed the way worth repeating for any migration: the **released image** against a
+  throwaway PostgreSQL in Docker (it applies the migrations so far and writes rows through
+  its API), then the new build against the same database — never a local run, which talks
+  to the production database. The container has to speak SSL: `cholewa-commons` connects
+  with `sslMode` `REQUIRE`.
   `shelly-client` migrated and released as **1.0.0**
   (2026-07-23, HAS-120) — Java 21 + Jackson 3 (dropped `jackson-databind`;
   a model-only library, generated models keep `com.fasterxml.jackson.annotation` only),
