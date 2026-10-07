@@ -50,9 +50,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.4.1** (2026-10-07, HAS-210 — two fixes
-  of the look: the domain badge icon centred, the glow on a layer that iOS Safari's toolbar
-  does not move) on top of 0.4.0 (HAS-208 — the "Zorza" look), 0.3.0 (HAS-190 — the MUI look and the seasonal colours), 0.2.0
+  reviewed and merged by the user. Current release **0.5.0** (2026-10-07, HAS-209 — a real
+  photo behind each view, the first one for the Overview, and the look tuned with the owner on
+  the live page) on top of 0.4.1 (HAS-210 — two fixes of the look: the domain badge icon centred,
+  the glow on a layer that iOS Safari's toolbar does not move), 0.4.0 (HAS-208 — the "Zorza"
+  look), 0.3.0 (HAS-190 — the MUI look and the seasonal colours), 0.2.0
   (HAS-189 — the interface in English and Polish) and 0.1.0 (HAS-188 — the application shell
   and the delivery pipeline), deployed; the
   dashboards follow from the Jira
@@ -108,8 +110,18 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     the glow, the domain wash), because a translucent surface has no contrast of its own. One
     thing it taught: Material's component styles are appended after the application's
     stylesheet, so a rule of equal specificity on a Material class silently loses — restyle
-    through the variables, or with a selector that carries Material's own class. The photo of
-    the view under the glow is the next task (HAS-209).
+    through the variables, or with a selector that carries Material's own class.
+  - **A real photo behind each view** (0.5.0, HAS-209): a route names its photo, the shell paints
+    it under the glow with a haze of the page colour, the Overview got a generated house at blue
+    hour (Superdesign, prompt and model recorded in the repo), and every later view brings its
+    own photo in its own task; a switch in the Settings turns the photos off. What the first
+    photo taught: translucent glass over a photo is a contrast problem — the check now lays the
+    text over the darkest and the lightest patch of every photo, and the owner tuned the haze,
+    the glass and the type scale on the live page (thin haze, see-through cards, a 14 px root,
+    12 px corners, no lead sentence under a title). Three decisions of the owner stand: the
+    glass stays as thin as the contrast allows, the title lies on the bare photo (checked over
+    the top band of the picture) and the phone typography is judged on the real iPhone, not an
+    emulated one.
 - `deployment-tools` — **PRIVATE**: Kubernetes manifests, local `kind` cluster setup,
   pipelines, RabbitMQ config. Private infrastructure details belong here, never in
   public repos.
