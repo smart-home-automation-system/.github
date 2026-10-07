@@ -19,7 +19,7 @@ except `deployment-tools`.
 | `ai-service` | 6004 | AI integration |
 | `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150) |
 | `water-service` | 6006 | Water control |
-| `boiler-service` | 6007 | Boiler control |
+| `boiler-service` | 6007 | Boiler control: drives the furnace and both pumps as relays of one Shelly Pro 4. Since 1.3.0 (2026-10-07, HAS-109) it also tells the household when that Shelly stops working — an alert once its calls have been failing for 5 minutes, a reminder every hour, an info when it works again — which makes it a publisher on the `/notification` virtual host. Current release **1.3.0** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129). Current release **0.1.1** |
 | `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Since **0.4.0** (2026-10-05, HAS-152) it has a reporting API: `GET /home/presence/residents/presence` (every active member with `present`, `since`, `lastCheckedAt`) and `GET /home/presence/residents/{name}/report?from=&to=` (the periods at home within a range of at most 366 days, local date-times, the one still going on marked `open`) — residents are identified by **name**, there is no id. **0.5.0** (2026-10-05, HAS-153) added the aggregates: `GET /home/presence/residents/{name}/report/daily` (per day `secondsAtHome`, `firstArrival`, `lastDeparture`, `presencePercentage`) and `GET /home/presence/house/report` (one timeline of occupied / empty stretches, per day `secondsOccupied`, `secondsEmpty`, `wasEmpty`). Both cover only what was observed and name the bounds (`observedFrom`, `observedUntil`); a member inside their grace period keeps the house occupied (the report asks the tracker), while an outage across a status change still reads as empty — know that before acting on `wasEmpty`. All four reports are routed by the gateway; the diagnostic `GET /home/presence/clients` (every MAC address on the network) is deliberately **not**. **0.6.0** (2026-10-05, HAS-154) closed the scope of the epic with the retention: every night at 03:00 the rows **last checked** more than `presence.retention` ago (`P365D`; 7 days to ten years, a bare number is days) are deleted — by the last check, so the current row of a watched member always survives — and the statistics never count anything before that horizon as observed. Current release **0.6.0**; notifications are not planned yet |
 
@@ -111,7 +111,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 ## Architecture notes
 
 - Reactive stack everywhere: Spring WebFlux, no blocking calls in service code.
-- Async messaging via RabbitMQ: `amx-service`, `heating-service`, `notification-service`.
+- Async messaging via RabbitMQ: `amx-service`, `heating-service`, `notification-service` and,
+  since HAS-109, `boiler-service` (a publisher of notifications only).
   Two virtual hosts, one broker user each: `/temperature` (user `temperature`; `amx-service`
   publishes `TemperatureMessage` to the fanout exchange `temperature.events`,
   `heating-service` consumes `temperature.prod.heating`) and `/notification` (user
@@ -128,13 +129,46 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `heating-service` 1.7.1, `notification-service` 0.4.3): the management UI shows
   `heating-service-69bccdf7f9-xzfxt`, which tells the old pod from the new one during a
   rollout. Each service has the same small `ConnectionNameStrategy` bean in its `RabbitConfig`
-  — three copies, accepted by the owner for now, a candidate for `cholewa-commons`. It takes
+  — four copies with `boiler-service` (1.3.0), accepted by the owner for now; moving it into
+  `cholewa-commons` is HAS-205, the adoption HAS-206. It takes
   `HOSTNAME` **only when it starts with `spring.application.name`**: outside Kubernetes the
   variable is not simply missing — Git Bash, Linux shells and plain Docker set it to a
   workstation name or a container id, and an empty value bypasses a placeholder default —
   so everything else becomes `<service>-local`. A second connection of the same pod adds what
   it is for (`<pod>/notification` in `heating-service`, opened on the first publish). A new
   service that talks to the broker copies the bean.
+- **The boiler room Shelly is watched (HAS-109, `boiler-service` 1.3.0, deployed 2026-10-07).**
+  `ShellyAvailabilityMonitor` is told by `ShellyClient` how every call ended and is asked at
+  the end of every control pass. The numbers are the owner's: alert (`error`) after 5 min,
+  reminder (`warn`) every hour, one `info` on the return; "urgent" is the red alert on Discord
+  until the SMS library exists (HAS-68). What four review passes taught, worth carrying into
+  any monitor of a device:
+  - **Judge by whole passes and by kind of call, not by single calls.** A pass with any failed
+    call is a failed pass; a pass proves the device only when it answered the kind of call
+    (status, command) that had been failing — or when it answers and nothing has failed for the
+    limit, because a command is sent only when a relay has to change. Call by call, a device
+    that answers its status and refuses every command is never reported, and a flapping one
+    sends a green/red pair every few minutes.
+  - **Time alone proves nothing.** An alert takes a failure in the pass it follows, and a
+    failure nothing followed for the limit is forgotten.
+  - **The device and the broker go down together** (power, network). An outage whose alert
+    never got through is announced afterwards, with the news of the return.
+  - **JSON that is not the model is a failed call** here too: `{}` decoded into an object of
+    nulls and read as "the relay is off".
+  - **A notification must neither fail nor stall what it reports on**: the report swallows
+    every error and is cut off after 30 s. Accepted by the owner (2026-10-07): a broker that
+    confirms later than 10 s gets the same message again with the next pass, and a hanging
+    broker delays the next pass by up to those 30 s.
+  - **A publisher with one connection needs no second factory**: `boiler-service` points
+    `spring.rabbitmq.*` straight at `/notification` and uses the auto-configured template;
+    confirms, returns and `mandatory` are properties, pinned by its context test. The
+    connection is opened by the first publish, so a wrong password would show only with the
+    first alert: after a deploy `GET /actuator/health` on the management port forces it (the
+    RabbitMQ indicator is in the aggregate, not in the `readiness` / `liveness` groups).
+  - **Nothing in the service can force a publish** — an endpoint would be reachable through
+    the gateway. The route was proven before the release by running the jar outside the
+    cluster with the Shelly pointed at a dead address, `env: dev` and a short limit, and
+    reading the message back from `notification.dev.alert`, which nothing consumes.
 - **Silent temperature sensors (HAS-94, released and deployed on 2026-10-05: `heating-service`
   1.5.0 → **1.6.0**, `notification-service` 0.3.0 → **0.4.1**).** `heating-service` checks once an hour
   the last stored reading of every room: silent for 24 h → an `alert`, repeated every 24 h,
