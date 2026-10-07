@@ -50,9 +50,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.2.0** (2026-10-06, HAS-189 — the
-  interface in English and Polish) on top of 0.1.0 (HAS-188 — the application shell and the
-  delivery pipeline), deployed; the dashboards follow from the Jira
+  reviewed and merged by the user. Current release **0.3.0** (2026-10-07, HAS-190 — the MUI
+  look and the seasonal colours) on top of 0.2.0 (HAS-189 — the interface in English and
+  Polish) and 0.1.0 (HAS-188 — the application shell and the delivery pipeline), deployed; the
+  dashboards follow from the Jira
   plan (epics HAS-184 foundation, HAS-185 heating / hot water / boiler room, HAS-186 personal
   room view on the phone, HAS-187 presence and household administration; frontend tasks carry
   the label `frontend`, the backend tasks they wait for sit in the same epics). What is decided
@@ -88,7 +89,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     translation parameter** — Transloco searches the substituted text for placeholders again,
     so a backend message containing `{{ message }}` froze the tab until such text was printed
     literally. The backend's own messages stay in English, as everywhere.
-  - Colours will follow the season (HAS-190).
+  - **The look is MUI's, the colours follow the season** (0.3.0, HAS-190). The owner chose the
+    look of https://mui.com/material-ui over Angular Material's own Material 3 on 2026-10-06;
+    the framework stays Angular — the components are Angular Material, restyled through their
+    CSS variables only (`src/theme/_mui.scss`), so nothing was rewritten. Four palettes
+    (spring, summer, autumn, winter), each light and dark, picked by `data-season` on `<html>`
+    from the browser clock (21 Mar / 22 Jun / 23 Sep / 22 Dec), re-read at midnight and at
+    least hourly. A Settings page previews any season and scheme; it is open to everyone until
+    the profiles exist (HAS-193). WCAG AA contrast of all eight variants is a build check
+    (`npm run check:contrast`), in CI.
 - `deployment-tools` — **PRIVATE**: Kubernetes manifests, local `kind` cluster setup,
   pipelines, RabbitMQ config. Private infrastructure details belong here, never in
   public repos.
