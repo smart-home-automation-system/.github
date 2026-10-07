@@ -50,8 +50,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.4.0** (2026-10-07, HAS-208 — the
-  "Zorza" look) on top of 0.3.0 (HAS-190 — the MUI look and the seasonal colours), 0.2.0
+  reviewed and merged by the user. Current release **0.4.1** (2026-10-07, HAS-210 — two fixes
+  of the look: the domain badge icon centred, the glow on a layer that iOS Safari's toolbar
+  does not move) on top of 0.4.0 (HAS-208 — the "Zorza" look), 0.3.0 (HAS-190 — the MUI look and the seasonal colours), 0.2.0
   (HAS-189 — the interface in English and Polish) and 0.1.0 (HAS-188 — the application shell
   and the delivery pipeline), deployed; the
   dashboards follow from the Jira
