@@ -50,9 +50,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.5.0** (2026-10-07, HAS-209 — a real
-  photo behind each view, the first one for the Overview, and the look tuned with the owner on
-  the live page) on top of 0.4.1 (HAS-210 — two fixes of the look: the domain badge icon centred,
+  reviewed and merged by the user. Current release **0.6.0** (2026-10-07, HAS-193 — household
+  profiles: personal links, a profile picker and navigation by role) on top of 0.5.0 (HAS-209 —
+  a real photo behind each view, the first one for the Overview, and the look tuned with the
+  owner on the live page), 0.4.1 (HAS-210 — two fixes of the look: the domain badge icon centred,
   the glow on a layer that iOS Safari's toolbar does not move), 0.4.0 (HAS-208 — the "Zorza"
   look), 0.3.0 (HAS-190 — the MUI look and the seasonal colours), 0.2.0
   (HAS-189 — the interface in English and Polish) and 0.1.0 (HAS-188 — the application shell
@@ -84,6 +85,22 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     separation of roles is UI-only until the gateway validates tokens (two phases, accepted by
     the owner on 2026-10-06 — access is LAN / VPN only). Residents only **view** temperatures
     and schedules; setting them is the admin's alone.
+  - **The profiles exist since 0.6.0** (HAS-193). `/u/<name>` — the name of the registry, in
+    any case — opens a profile and the browser remembers it with its role and rooms; without
+    one every address leads to a picker of the active members. The administrator reaches every
+    page; a resident reaches `/room` ("My room", so far only the list of their rooms — the view
+    proper is HAS-202) and is led there from everything else. The registry is asked again at
+    every start and whenever the page comes back into view, so a role changed there, or a
+    member switched off, takes effect under an open page; while the backend is away the
+    application keeps working as the member it remembers. **A page of the application is the
+    administrator's unless its route says otherwise** (`data.access`). The language is now
+    remembered per member. Three things the owner settled or accepted (2026-10-07): a resident
+    is not offered the picker, so a profile chosen by mistake where there is no address bar
+    (the installed application) is undone by clearing the data of the site; Settings and About
+    are the administrator's; and the application still downloads the whole registry — phone
+    numbers and device MAC addresses included — to learn one member's role, which **HAS-211**
+    ends with a slim `GET /home/household/profiles`. The README of the repository says plainly
+    that none of this is access control.
   - **Two languages since 0.2.0**: English by default — on a first visit always, whatever the
     browser says — and Polish chosen in the toolbar, without a reload, remembered in the browser
     (Transloco; English in the bundle, Polish downloaded on choice). Three things it settled,
@@ -104,8 +121,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     rewritten. Four palettes (spring green, summer gold, autumn rust, winter blue — summer was
     sea-teal and indistinguishable from winter), each light and dark, picked by `data-season`
     on `<html>` from the browser clock (21 Mar / 22 Jun / 23 Sep / 22 Dec), re-read at midnight
-    and at least hourly. A Settings page previews any season and scheme; it is open to everyone
-    until the profiles exist (HAS-193). WCAG AA contrast of all eight variants is a build check
+    and at least hourly. A Settings page previews any season and scheme; since the profiles
+    (0.6.0) it is the administrator's. WCAG AA contrast of all eight variants is a build check
     (`npm run check:contrast`), in CI — since 0.4.0 on the **composited** colours (glass over
     the glow, the domain wash), because a translucent surface has no contrast of its own. One
     thing it taught: Material's component styles are appended after the application's
