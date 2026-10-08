@@ -14,7 +14,7 @@ except `deployment-tools`.
 |---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside: the ingress forwards all of `/home` here and static routes fan out to the services over k8s DNS (HAS-171) |
 | `amx-service` | 6001 | Bridge to the AMX control system (2-way communication with AMX-connected devices) |
-| `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Current release **1.7.1** |
+| `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Since **1.8.0** (2026-10-08, HAS-197) it serves the state it holds in memory, read-only and through the gateway's `/heating/**` route: `GET /home/heating/rooms`, `GET /home/heating/rooms/{name}` (the name as the list gives it, `living room`, in any case; an unknown one is a 404 with the code `NOT_FOUND_ROOM`) and `GET /home/heating/floor-pump` - the contract of the dashboard's room views (HAS-198, HAS-202). What a client has to know: a missing field means "not known", never off or zero (`temperature` only for a room that never reported - at a start every room gets its last stored reading from the database; `working` until the relay has answered; `inSchedule` and `heatingEnabled` until a control pass has decided them, which takes the next reading of the room - so right after a deploy most rooms show a temperature and nothing else); `inSchedule` / `targetTemperature` are the control loop's decision at the last reading (a schedule is on **and** the room is colder than it asks), so they vanish once the room is warm; **`scheduledTemperature` is the target to show** - what the schedules ask for at the moment of the call, computed by the service's clock, so a client works nothing out from `schedules`. `sanctum` and the rooms without a heater never get `heatingEnabled`. Current release **1.8.0** |
 | `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.3** |
 | `ai-service` | 6004 | AI integration |
 | `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192 — which, since 0.10.0, asks for them through a read of its own, `GET /home/household/profiles`; HAS-211). Current release **0.10.0** |
@@ -487,10 +487,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `PATCH` (below). The SDK got its first tests and a `CLAUDE.md` with these traps.
   **1.5.0** (2026-10-08, HAS-211) added `HouseholdProfile` — name, role and rooms, what the
   web dashboard may know about a member — purely additive;
-  current latest is **1.5.0**, on `database-service` (0.10.0, 2026-10-08, HAS-211); the
+  current latest is **1.5.0**, on `database-service` (0.10.0, 2026-10-08, HAS-211) and
+  `heating-service` (1.8.0, 2026-10-08, HAS-197); the
   others take it with their next task (`presence-service` on 1.3.0 was run against the JSON
   of 1.4.0: it ignores the new fields). **1.3.0** is on `amx-service` (1.3.0), `presence-service`
-  (0.6.0), `heating-service` (1.7.0), `water-service` (0.5.1), `boiler-service` (1.2.1,
+  (0.6.0), `water-service` (0.5.1), `boiler-service` (1.2.1,
   HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183).
   **`database-service` 0.9.0 (HAS-192, deployed 2026-10-07) stores and serves both.**
   `GET /home/household` answers every member with a `role` (always) and `rooms` (left out
