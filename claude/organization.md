@@ -50,10 +50,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.9.0** (2026-10-08, HAS-196 — the heating
+  reviewed and merged by the user. Current release **0.10.0** (2026-10-08, HAS-203 — the presence
+  dashboard on the four routed reports of `presence-service`)
+  on top of 0.9.0 (HAS-196 — the heating
   dashboard: the switch of the whole system, the first control of the application that changes
-  the house, and the health of the temperature sensors)
-  on top of 0.8.1 (HAS-195 — the first two
+  the house, and the health of the temperature sensors), 0.8.1 (HAS-195 — the first two
   dashboards, hot water and the boiler room, and a "More" entry in the navigation of the phone;
   0.8.1 the same day: the boiler room draws the furnace and its two pumps only, in a card as
   wide as the screen on a phone), 0.7.0 (HAS-194 — installable on the
@@ -190,6 +191,33 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       gateway - the switch pressed there is the real one.
     - The switch is a shared card, to be reused by "My room" (HAS-202). At the deploy the page
       was checked against the cluster read-only: 13 sensors, all reporting, heating off.
+    Since **0.10.0** (HAS-203, 2026-10-08) there is `/presence`, the administrator's and
+    read-only: who is at home now, the days of one resident and the days of the house, for
+    today, 7 or 30 days or two dates within 366 days. What the backend side should know:
+    - **It calls the four routed reads and nothing else** - `residents/presence` every 60 s; the
+      two reports of the chosen resident (always together) and the house report when the
+      resident or the period changes, then every 5 min. `from` / `to` are midnights of the house,
+      the end being the midnight after the last day, so the running day is always inside.
+      `/home/presence/clients` is never called.
+    - **`observedFrom` / `observedUntil` are what the page is drawn from**: a day outside them
+      gets no row, the part of a day outside them is hatched, and the page says where the
+      history begins. Both `null` is "nothing was observed". Keep them in every report.
+    - **`present: false` with `lastCheckedAt: null` is shown as "not observed yet"**, not as away
+      - the way the service lists a member it has stored nothing about. A `lastCheckedAt` older
+      than 5 minutes is flagged on the page: the detection may be down.
+    - **The figures are the service's**: the page computes none of its own, only draws bars from
+      the intervals. At the deploy 114 figures of one week (every resident and the house) were
+      compared with the API on the cluster - none differed.
+    - **Time the detection was down in the middle of the history reads as empty**, as the
+      README of `presence-service` says; the page repeats that warning under the house list
+      instead of guessing.
+    - A resident is asked for by **name in the path**, percent-encoded.
+    Two things the task left for the frontend at large: Angular Material's calendar and
+    paginator are provided by the view that has one, never by the application configuration
+    (the calendar there had put 258 kB into the first download), and the initial bundle is now
+    648 kB against a budget of 650 kB - the next view with a new Material control trips the
+    warning. And the owner's rule from this round: **a view fills the screen before it asks to
+    be scrolled** - cards laid out across the width, checked at 2560 x 1440 and 1440 x 900.
     The owner's rules for the look that came out of it: **a card is as big as what it says**
     (never stretched and left mostly empty), a view photo has to read as its place at a glance,
     **a view is shown on a live preview before its PR is called ready**, and **nothing is drawn
