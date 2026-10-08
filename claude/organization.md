@@ -108,7 +108,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     (left out when empty), sorted by name — the model is `HouseholdProfile` of `smart-home-sdk`
     1.5.0, a schema of its own, so a field added to `HouseholdMember` later does not reach the
     browsers by itself. The gateway needed no change (`/household/**` was routed already), which
-    also means the full `GET /home/household` is still reachable through it. The application
+    also means the full `GET /home/household` is still reachable through it — **kept on purpose** (owner, 2026-10-08: the network is local, and the route is what makes the whole registry callable from Bruno without a port-forward; do not re-raise it). The application
     never calls it — its mock API answers that path with 404, so a browser test fails on a call
     that slips back in. "Switched off" and "removed" are one case to the application now: a
     member who is not in the answer loses the profile. Not shown on live data: the registry held
