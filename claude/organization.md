@@ -50,9 +50,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.7.0** (2026-10-08, HAS-194 — installable on the
+  reviewed and merged by the user. Current release **0.8.0** (2026-10-08, HAS-195 — the first two
+  dashboards, hot water and the boiler room, and a "More" entry in the navigation of the phone)
+  on top of 0.7.0 (HAS-194 — installable on the
   household's iPhones: a web app manifest, a service worker for the application alone, a banner
-  while the house cannot be reached and a notice of a new version) on top of 0.6.1 (HAS-211 — the
+  while the house cannot be reached and a notice of a new version), 0.6.1 (HAS-211 — the
   profiles come from `GET /home/household/profiles` instead of the whole registry, and one
   way to the browser's storage), 0.6.0 (HAS-193 — household
   profiles: personal links, a profile picker and navigation by role), 0.5.0 (HAS-209 —
@@ -144,6 +146,28 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     Left for the real iPhone (owner): the first install from a personal link, the banner outside
     the house without the VPN, and the update notice - which only the release after 0.7.0 can
     show, 0.7.0 being the first with a worker.
+  - **Hot water and boiler room since 0.8.0** (HAS-195, 2026-10-08), both read-only, on
+    `GET /home/water/status/temperature`, `GET /home/water/status/active` and
+    `GET /home/boiler/status`, each polled every 30 s by an open page. What the backend side
+    should know about them:
+    - **The 38 / 42 °C band on the gauge is a copy** of the two constants in
+      `WaterService.updateWaterHeatingStatus`; no endpoint exposes them. Change them in
+      `water-service` and `HOT_WATER_BAND` of the dashboard has to follow.
+    - **The temperatures carry no time of measurement**, so the page can only say when it last
+      asked, and a sensor that fell silent reads as current. The field is planned with HAS-200
+      (added to that task on 2026-10-08); the dashboard shows the age once it exists.
+    - **Before its first reading `water-service` answers 200 with no body**; the dashboard shows
+      "nothing measured yet". Keep that or change both sides together.
+    - **In the JSON of `boiler-service` the Java field `isWorking` is `working`**, and its notes
+      about a device ("Pump state changed to: true") are shown on the page as they are, in
+      English. They are user-facing text now.
+    - **Missing is never read as "off"**: a device without `working`, or an answer without
+      `active`, is shown as unknown.
+    - Found on the way: the gateway answered one call with a bare 500 after a pooled connection
+      to `water-service` was reset - HAS-212, in the sprint.
+    The owner's rules for the look that came out of it: **a card is as big as what it says**
+    (never stretched and left mostly empty), a view photo has to read as its place at a glance,
+    and **a view is shown on a live preview before its PR is called ready**.
   - **Two languages since 0.2.0**: English by default — on a first visit always, whatever the
     browser says — and Polish chosen in the toolbar, without a reload, remembered in the browser
     (Transloco; English in the bundle, Polish downloaded on choice). Three things it settled,
