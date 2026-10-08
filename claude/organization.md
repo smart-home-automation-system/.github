@@ -50,9 +50,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.10.0** (2026-10-08, HAS-203 — the presence
-  dashboard on the four routed reports of `presence-service`)
-  on top of 0.9.0 (HAS-196 — the heating
+  reviewed and merged by the user. Current release **0.11.0** (2026-10-08, HAS-198 — the rooms
+  of the house on the heating dashboard, on the contract of `heating-service` 1.8.0)
+  on top of 0.10.0 (HAS-203 — the presence
+  dashboard on the four routed reports of `presence-service`), 0.9.0 (HAS-196 — the heating
   dashboard: the switch of the whole system, the first control of the application that changes
   the house, and the health of the temperature sensors), 0.8.1 (HAS-195 — the first two
   dashboards, hot water and the boiler room, and a "More" entry in the navigation of the phone;
@@ -212,6 +213,31 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       README of `presence-service` says; the page repeats that warning under the house list
       instead of guessing.
     - A resident is asked for by **name in the path**, percent-encoded.
+    Since **0.11.0** (HAS-198, 2026-10-08) `/heating` also shows the rooms and the pump of the
+    floor heating, read-only: `GET /home/heating/rooms` and `GET /home/heating/floor-pump`,
+    each every 30 s by an open page. What the backend side should know:
+    - **It needs `heating-service` 1.8.0 or later**; against an older one both cards show a
+      404 as their failure and the rest of the page works.
+    - **The page claims nothing the answer leaves out**: a heater without `working` reads "no
+      status yet", a room without `temperature` "No reading yet", and "Calls for heat" - its
+      word for `inSchedule` - appears only for `true`. So after every deploy of
+      `heating-service` most rooms show a temperature and heaters without a status until their
+      sensors report; that is the contract, not a fault of the page.
+    - **The target on a card is `scheduledTemperature`**, for a room with two heaters the
+      higher one; `targetTemperature` is not read at all. The page computes nothing from
+      `schedules` - it only draws them, a week per heater, placed by the clock of the house.
+    - **A period it cannot draw is counted under the week**: an unknown day, an end before the
+      start, a period across midnight - and any `type` other than `HEATING`. The day the
+      service gets cooling periods the page has to learn them.
+    - **The floors are a list in the frontend** (`FLOORS`, `features/heating/room-views.ts`), by
+      the identifiers of `RoomName`; the owner set it (2026-10-08: `sanctum` with the sauna and
+      the garden, outside) and accepted that the list is in a public repository. **A room added
+      to `HomeConfig` shows up under "Other" until it is added there** - and renaming a
+      `RoomName` moves its room to "Other" the same way.
+    - A room is shown by its identifier (`bathroom down`), as it comes.
+    At the deploy the page was checked read-only on the live address: 15 rooms answered, 15
+    shown on their floors, no request other than `GET`. The first download of the application
+    is now exactly at its budget (650 kB): the next view has to move something out of it.
     Two things the task left for the frontend at large: Angular Material's calendar and
     paginator are provided by the view that has one, never by the application configuration
     (the calendar there had put 258 kB into the first download), and the initial bundle is now
