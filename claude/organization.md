@@ -50,8 +50,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.8.0** (2026-10-08, HAS-195 — the first two
-  dashboards, hot water and the boiler room, and a "More" entry in the navigation of the phone)
+  reviewed and merged by the user. Current release **0.8.1** (2026-10-08, HAS-195 — the first two
+  dashboards, hot water and the boiler room, and a "More" entry in the navigation of the phone;
+  0.8.1 the same day: the boiler room draws the furnace and its two pumps only, in a card as
+  wide as the screen on a phone)
   on top of 0.7.0 (HAS-194 — installable on the
   household's iPhones: a web app manifest, a service worker for the application alone, a banner
   while the house cannot be reached and a notice of a new version), 0.6.1 (HAS-211 — the
@@ -167,7 +169,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       to `water-service` was reset - HAS-212, in the sprint.
     The owner's rules for the look that came out of it: **a card is as big as what it says**
     (never stretched and left mostly empty), a view photo has to read as its place at a glance,
-    and **a view is shown on a live preview before its PR is called ready**.
+    **a view is shown on a live preview before its PR is called ready**, and **nothing is drawn
+    that the backend does not report** - 0.8.0 had boxes for the hot-water tank and the heating
+    circuits that only repeated the pump next to them, removed in 0.8.1.
   - **Two languages since 0.2.0**: English by default — on a first visit always, whatever the
     browser says — and Polish chosen in the toolbar, without a reload, remembered in the browser
     (Transloco; English in the bundle, Polish downloaded on choice). Three things it settled,
