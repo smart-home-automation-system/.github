@@ -50,9 +50,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.6.1** (2026-10-08, HAS-211 — the
+  reviewed and merged by the user. Current release **0.7.0** (2026-10-08, HAS-194 — installable on the
+  household's iPhones: a web app manifest, a service worker for the application alone, a banner
+  while the house cannot be reached and a notice of a new version) on top of 0.6.1 (HAS-211 — the
   profiles come from `GET /home/household/profiles` instead of the whole registry, and one
-  way to the browser's storage) on top of 0.6.0 (HAS-193 — household
+  way to the browser's storage), 0.6.0 (HAS-193 — household
   profiles: personal links, a profile picker and navigation by role), 0.5.0 (HAS-209 —
   a real photo behind each view, the first one for the Overview, and the look tuned with the
   owner on the live page), 0.4.1 (HAS-210 — two fixes of the look: the domain badge icon centred,
@@ -116,6 +118,32 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     its tests (HAS-207), so the first member switched off is the first proof of the filter.
     With the same release the application got one way to `localStorage`
     (`core/storage/browser-storage.ts`) instead of a copy per store.
+  - **Installed on the home screen since 0.7.0** (HAS-194, 2026-10-08). Five things it settled,
+    worth knowing before touching the profiles, the gateway or the nginx of the application:
+    - **The icon opens the personal link it was added from.** The manifest names no
+      `start_url` (a build check keeps it that way), because an installed application on iOS
+      has its own storage, apart from Safari's, and knows nobody until the link tells it. So
+      `/u/<name>` is also the install page: in a browser tab on an iPhone it stays under its own
+      address and shows the steps, instead of moving on to the member's page.
+    - **A member's own link opens at once**, the registry is asked on the side - the installed
+      application starts from that link every time, and waiting for the registry was a 10 s
+      spinner outside the house. A member switched off since then lands on the picker when the
+      registry answers.
+    - **The service worker keeps the application, never an answer of the backend.** Every call
+      of the application carries the header `ngsw-bypass`, which the gateway and the services
+      see (and ignore) - it shows in the logbook lines. Without it the worker would answer a
+      call that got no reply with a 504 of its own.
+    - **"No connection to the house" takes two unanswered calls in a row** with nothing answered
+      in between; one call is only a doubt, settled at once by asking for the profiles. So an
+      extra `GET /home/household/profiles` now and then, and one every 30 s from a browser that
+      is out of reach, is the application checking - not a loop.
+    - **A deployment no longer reaches an open browser by a reload alone**: the worker downloads
+      the new version next to the running one and the application offers "Reload". After a
+      deploy the About page of a browser that already had the application may show the old
+      version until that reload; `ngsw-worker.js` and `ngsw.json` must stay `no-cache` in nginx.
+    Left for the real iPhone (owner): the first install from a personal link, the banner outside
+    the house without the VPN, and the update notice - which only the release after 0.7.0 can
+    show, 0.7.0 being the first with a worker.
   - **Two languages since 0.2.0**: English by default — on a first visit always, whatever the
     browser says — and Polish chosen in the toolbar, without a reload, remembered in the browser
     (Transloco; English in the bundle, Polish downloaded on choice). Three things it settled,
