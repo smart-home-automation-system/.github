@@ -17,7 +17,7 @@ except `deployment-tools`.
 | `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Current release **1.7.1** |
 | `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.3** |
 | `ai-service` | 6004 | AI integration |
-| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192). Current release **0.9.0** |
+| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192 — which, since 0.10.0, asks for them through a read of its own, `GET /home/household/profiles`; HAS-211). Current release **0.10.0** |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control: drives the furnace and both pumps as relays of one Shelly Pro 4. Since 1.3.0 (2026-10-07, HAS-109) it also tells the household when that Shelly stops working — an alert once its calls have been failing for 5 minutes, a reminder every hour, an info when it works again — which makes it a publisher on the `/notification` virtual host. Current release **1.3.0** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129). Current release **0.1.1** |
@@ -50,8 +50,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.6.0** (2026-10-07, HAS-193 — household
-  profiles: personal links, a profile picker and navigation by role) on top of 0.5.0 (HAS-209 —
+  reviewed and merged by the user. Current release **0.6.1** (2026-10-08, HAS-211 — the
+  profiles come from `GET /home/household/profiles` instead of the whole registry, and one
+  way to the browser's storage) on top of 0.6.0 (HAS-193 — household
+  profiles: personal links, a profile picker and navigation by role), 0.5.0 (HAS-209 —
   a real photo behind each view, the first one for the Overview, and the look tuned with the
   owner on the live page), 0.4.1 (HAS-210 — two fixes of the look: the domain badge icon centred,
   the glow on a layer that iOS Safari's toolbar does not move), 0.4.0 (HAS-208 — the "Zorza"
@@ -94,13 +96,26 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     member switched off, takes effect under an open page; while the backend is away the
     application keeps working as the member it remembers. **A page of the application is the
     administrator's unless its route says otherwise** (`data.access`). The language is now
-    remembered per member. Three things the owner settled or accepted (2026-10-07): a resident
+    remembered per member. Two things the owner settled or accepted (2026-10-07): a resident
     is not offered the picker, so a profile chosen by mistake where there is no address bar
-    (the installed application) is undone by clearing the data of the site; Settings and About
-    are the administrator's; and the application still downloads the whole registry — phone
-    numbers and device MAC addresses included — to learn one member's role, which **HAS-211**
-    ends with a slim `GET /home/household/profiles`. The README of the repository says plainly
-    that none of this is access control.
+    (the installed application) is undone by clearing the data of the site; and Settings and
+    About are the administrator's. The README of the repository says plainly that none of this
+    is access control.
+  - **The dashboard asks for the profiles only** (0.6.1, HAS-211, 2026-10-08). Until then every
+    browser downloaded the whole registry — phone numbers and device MAC addresses included —
+    to learn one member's role. `database-service` 0.10.0 serves `GET
+    /home/household/profiles`: the active members only, each with `name`, `role` and `rooms`
+    (left out when empty), sorted by name — the model is `HouseholdProfile` of `smart-home-sdk`
+    1.5.0, a schema of its own, so a field added to `HouseholdMember` later does not reach the
+    browsers by itself. The gateway needed no change (`/household/**` was routed already), which
+    also means the full `GET /home/household` is still reachable through it. The application
+    never calls it — its mock API answers that path with 404, so a browser test fails on a call
+    that slips back in. "Switched off" and "removed" are one case to the application now: a
+    member who is not in the answer loses the profile. Not shown on live data: the registry held
+    no switched-off member at the deploy, and the repository of `database-service` is mocked in
+    its tests (HAS-207), so the first member switched off is the first proof of the filter.
+    With the same release the application got one way to `localStorage`
+    (`core/storage/browser-storage.ts`) instead of a copy per store.
   - **Two languages since 0.2.0**: English by default — on a first visit always, whatever the
     browser says — and Polish chosen in the toolbar, without a reload, remembered in the browser
     (Transloco; English in the bundle, Polish downloaded on choice). Three things it settled,
@@ -342,7 +357,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   which closed the 4 Dependabot jackson-databind alerts. `database-service` adopted it
   during its own migration (HAS-126); `shelly-cloud-service`, the last consumer on the old
   SDK (0.1.x), moved during its own migration (HAS-129), so nothing is left behind.
-  It has since had four feature releases — **1.1.0** (2026-07-28, HAS-136 — `required` on
+  It has since had five feature releases — **1.1.0** (2026-07-28, HAS-136 — `required` on
   the Eaton configuration models, so the generated models carry `@NotNull` and a consumer
   can validate the payload with `@Valid` alone), **1.2.0** (2026-09-27, HAS-149 — the
   household registry models `HouseholdMember` and `MemberPhoneDetails`, with the schema's
@@ -362,10 +377,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   enums it differs between JVM runs); a repeated room is for the registry to refuse. What
   could not be helped: a missing `rooms` reads as an empty list — which is why
   `database-service` gave the rooms an endpoint of their own instead of honouring them in
-  `PATCH` (below). The SDK got its first tests and a `CLAUDE.md` with these traps;
-  current latest is **1.4.0**, on `database-service` (0.9.0, 2026-10-07, HAS-192); the
-  others take it with their next task (`presence-service` on 1.3.0 was run against the new
-  JSON: it ignores the fields). **1.3.0** is on `amx-service` (1.3.0), `presence-service`
+  `PATCH` (below). The SDK got its first tests and a `CLAUDE.md` with these traps.
+  **1.5.0** (2026-10-08, HAS-211) added `HouseholdProfile` — name, role and rooms, what the
+  web dashboard may know about a member — purely additive;
+  current latest is **1.5.0**, on `database-service` (0.10.0, 2026-10-08, HAS-211); the
+  others take it with their next task (`presence-service` on 1.3.0 was run against the JSON
+  of 1.4.0: it ignores the new fields). **1.3.0** is on `amx-service` (1.3.0), `presence-service`
   (0.6.0), `heating-service` (1.7.0), `water-service` (0.5.1), `boiler-service` (1.2.1,
   HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183).
   **`database-service` 0.9.0 (HAS-192, deployed 2026-10-07) stores and serves both.**
@@ -590,7 +607,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.7.0**,
-  `smart-home-sdk` **1.4.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
+  `smart-home-sdk` **1.5.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
   `shelly-cloud-service` and `presence-service` — plus `api-gateway-service` are on the
