@@ -50,11 +50,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.8.1** (2026-10-08, HAS-195 — the first two
+  reviewed and merged by the user. Current release **0.9.0** (2026-10-08, HAS-196 — the heating
+  dashboard: the switch of the whole system, the first control of the application that changes
+  the house, and the health of the temperature sensors)
+  on top of 0.8.1 (HAS-195 — the first two
   dashboards, hot water and the boiler room, and a "More" entry in the navigation of the phone;
   0.8.1 the same day: the boiler room draws the furnace and its two pumps only, in a card as
-  wide as the screen on a phone)
-  on top of 0.7.0 (HAS-194 — installable on the
+  wide as the screen on a phone), 0.7.0 (HAS-194 — installable on the
   household's iPhones: a web app manifest, a service worker for the application alone, a banner
   while the house cannot be reached and a notice of a new version), 0.6.1 (HAS-211 — the
   profiles come from `GET /home/household/profiles` instead of the whole registry, and one
@@ -167,6 +169,27 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       `active`, is shown as unknown.
     - Found on the way: the gateway answered one call with a bare 500 after a pooled connection
       to `water-service` was reset - HAS-212, in the sprint.
+    Since **0.9.0** (HAS-196, 2026-10-08) there is a third, `/heating`, and it is **not
+    read-only**: besides `GET /home/heating`, `GET /home/heating/status/active` (30 s) and
+    `GET /home/heating/temperature/sensors` (60 s) the page sends
+    `POST /home/heating?turn=on|off` - after a question in the card, never by itself. What the
+    backend side should know:
+    - **The answer of the `POST` is not used.** The page reads `GET /home/heating` again after
+      every change, carried out or not, and shows that; right after it, it also asks
+      `status/active` again. So one switch is three calls, and a `POST` that times out (10 s in
+      the browser) is told as "may not have been carried out", not as a failure.
+    - **`turn` is `on` or `off`, nothing else** - and `heating-service` reads anything that is
+      not `on` as off, without a 400. Keep that in mind before another client sends a typo.
+    - **The page does not name the 24 hours** after which a sensor is `stale`: the limit is
+      `heating.sensor-monitor` configuration that no endpoint exposes. `muted` is shown as a
+      badge next to `stale`, which the service reports for a muted room all the same.
+    - **A room that never reported is not in the sensor list**, and the page shows the rooms by
+      the identifiers of `RoomName` (`bathroom down`), as they come.
+    - **Nothing automated ever sends that `POST` to the cluster**: the browser tests run against
+      a mock API with a switch of its own. `npm start` of the repository does talk to the real
+      gateway - the switch pressed there is the real one.
+    - The switch is a shared card, to be reused by "My room" (HAS-202). At the deploy the page
+      was checked against the cluster read-only: 13 sensors, all reporting, heating off.
     The owner's rules for the look that came out of it: **a card is as big as what it says**
     (never stretched and left mostly empty), a view photo has to read as its place at a glance,
     **a view is shown on a live preview before its PR is called ready**, and **nothing is drawn
