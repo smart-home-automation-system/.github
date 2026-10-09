@@ -17,7 +17,7 @@ except `deployment-tools`.
 | `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Since **1.8.0** (2026-10-08, HAS-197) it serves the state it holds in memory, read-only and through the gateway's `/heating/**` route: `GET /home/heating/rooms`, `GET /home/heating/rooms/{name}` (the name as the list gives it, `living room`, in any case; an unknown one is a 404 with the code `NOT_FOUND_ROOM`) and `GET /home/heating/floor-pump` - the contract of the dashboard's room views (HAS-198, HAS-202). What a client has to know: a missing field means "not known", never off or zero (`temperature` only for a room that never reported - at a start every room gets its last stored reading from the database; `working` until the relay has answered; `inSchedule` and `heatingEnabled` until a control pass has decided them, which takes the next reading of the room - so right after a deploy most rooms show a temperature and nothing else); `inSchedule` / `targetTemperature` are the control loop's decision at the last reading (a schedule is on **and** the room is colder than it asks), so they vanish once the room is warm; **`scheduledTemperature` is the target to show** - what the schedules ask for at the moment of the call, computed by the service's clock, so a client works nothing out from `schedules`. `sanctum` and the rooms without a heater never get `heatingEnabled`. Current release **1.8.0** |
 | `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.3** |
 | `ai-service` | 6004 | AI integration |
-| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192 — which, since 0.10.0, asks for them through a read of its own, `GET /home/household/profiles`; HAS-211). Current release **0.10.0** |
+| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192 — which, since 0.10.0, asks for them through a read of its own, `GET /home/household/profiles`; HAS-211 — and, since 0.11.0, each member's permissions, what the registry grants one member beyond the role; HAS-202). Current release **0.11.0** |
 | `water-service` | 6006 | Water control |
 | `boiler-service` | 6007 | Boiler control: drives the furnace and both pumps as relays of one Shelly Pro 4. Since 1.3.0 (2026-10-07, HAS-109) it also tells the household when that Shelly stops working — an alert once its calls have been failing for 5 minutes, a reminder every hour, an info when it works again — which makes it a publisher on the `/notification` virtual host. Current release **1.3.0** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129). Current release **0.1.1** |
@@ -50,9 +50,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.11.0** (2026-10-08, HAS-198 — the rooms
-  of the house on the heating dashboard, on the contract of `heating-service` 1.8.0)
-  on top of 0.10.0 (HAS-203 — the presence
+  reviewed and merged by the user. Current release **0.12.0** (2026-10-09, HAS-202 — "My room", the view of a
+  resident's own rooms on the phone, and the permissions of a member) on top of 0.11.0
+  (HAS-198 — the rooms of the house on the heating dashboard, on the contract of
+  `heating-service` 1.8.0), 0.10.0 (HAS-203 — the presence
   dashboard on the four routed reports of `presence-service`), 0.9.0 (HAS-196 — the heating
   dashboard: the switch of the whole system, the first control of the application that changes
   the house, and the health of the temperature sensors), 0.8.1 (HAS-195 — the first two
@@ -100,8 +101,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   - **The profiles exist since 0.6.0** (HAS-193). `/u/<name>` — the name of the registry, in
     any case — opens a profile and the browser remembers it with its role and rooms; without
     one every address leads to a picker of the active members. The administrator reaches every
-    page; a resident reaches `/room` ("My room", so far only the list of their rooms — the view
-    proper is HAS-202) and is led there from everything else. The registry is asked again at
+    page; a resident reaches `/room` ("My room" — the view proper since 0.12.0, HAS-202, below)
+    and is led there from everything else. The registry is asked again at
     every start and whenever the page comes back into view, so a role changed there, or a
     member switched off, takes effect under an open page; while the backend is away the
     application keeps working as the member it remembers. **A page of the application is the
@@ -190,7 +191,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     - **Nothing automated ever sends that `POST` to the cluster**: the browser tests run against
       a mock API with a switch of its own. `npm start` of the repository does talk to the real
       gateway - the switch pressed there is the real one.
-    - The switch is a shared card, to be reused by "My room" (HAS-202). At the deploy the page
+    - The switch is a shared card; "My room" shows it too, but only to a member with the
+      permission `heating_switch` (0.12.0, HAS-202). At the deploy the page
       was checked against the cluster read-only: 13 sensors, all reporting, heating off.
     Since **0.10.0** (HAS-203, 2026-10-08) there is `/presence`, the administrator's and
     read-only: who is at home now, the days of one resident and the days of the house, for
@@ -229,7 +231,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     - **A period it cannot draw is counted under the week**: an unknown day, an end before the
       start, a period across midnight - and any `type` other than `HEATING`. The day the
       service gets cooling periods the page has to learn them.
-    - **The floors are a list in the frontend** (`FLOORS`, `features/heating/room-views.ts`), by
+    - **The floors are a list in the frontend** (`FLOORS`, `features/heating/floors.ts`), by
       the identifiers of `RoomName`; the owner set it (2026-10-08: `sanctum` with the sauna and
       the garden, outside) and accepted that the list is in a public repository. **A room added
       to `HomeConfig` shows up under "Other" until it is added there** - and renaming a
@@ -237,7 +239,53 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     - A room is shown by its identifier (`bathroom down`), as it comes.
     At the deploy the page was checked read-only on the live address: 15 rooms answered, 15
     shown on their floors, no request other than `GET`. The first download of the application
-    is now exactly at its budget (650 kB): the next view has to move something out of it.
+    was then exactly at its budget (650 kB); the owner has since settled that the size is no
+    concern (2026-10-08: the application runs on the Wi-Fi of the house) - the warning is
+    raised when a view crosses it, 700 kB since 0.12.0.
+    Since **0.12.0** (HAS-202, 2026-10-09) `/room` is "My room": the rooms the registry lists
+    for the member of the profile, one at a time, with a switcher when there are several.
+    Phone-first, and the one page a resident has. What the backend side should know:
+    - **It reads one room**: `GET /home/heating/rooms/{name}` of `heating-service` 1.8.0 or
+      later, the name percent-encoded, every 30 s while the page is open. The same rules as
+      on the dashboard: nothing is claimed that the answer leaves out, the target is
+      `scheduledTemperature`, the schedule of today is drawn and nothing computed from it.
+    - **A room of the registry that `heating-service` does not know is told as such**: the
+      404 with the code `NOT_FOUND_ROOM` reads "unknown room", any other failure as a
+      failure. `RoomName` has more rooms than the heating has (`kitchen`, the halls, the
+      stairs) - giving a member one of those is not an error, it only shows that card.
+    - **Nothing about a room can be changed there**, by anybody. Setting temperatures and
+      schedules is not in the application yet and will be the administrator's alone.
+    - **The switch of the heating of the whole house is there for a member with the permission
+      `heating_switch`, and for nobody else** - the owner's decision (2026-10-09), against the
+      first wording of the task, which gave it to every resident. Not the role decides: the
+      administrator has no switch on that page either and switches on `/heating`. Without
+      the permission the page does not even ask `GET /home/heating`.
+    - **A permission is a field of the registry, not a list in the frontend**:
+      `MemberPermission` of `smart-home-sdk` 1.6.0 (one value so far, `heating_switch`),
+      `permissions` on `HouseholdMember` and `HouseholdProfile`, stored and served by
+      `database-service` 0.11.0 - `GET /home/household` and `.../profiles` carry it (left
+      out when empty, like `rooms`), `POST` takes it, `PATCH` leaves it alone, and
+      **`PUT /home/household/member/{name}/permissions`** replaces it with a JSON array
+      (`[]` takes all away; one listed twice or a `null` is a 400
+      `INVALID_HOUSEHOLD_MEMBER`). Stored as constant names in an array column (`V12`),
+      like the rooms. Against a `database-service` below 0.11.0 nobody has a permission and
+      the page simply has no switch.
+    - **It decides what the dashboard offers and nothing more.** No service checks a
+      permission, and the `POST /home/heating` stays reachable for whoever reaches the
+      gateway - UI-only, like the roles, until the gateway validates tokens.
+    - **A new value of `MemberPermission` is not additive for a reader of the whole
+      registry**: `presence-service` decodes `GET /home/household` and would fail on a value
+      its SDK does not know. Today it is on an SDK without the field and ignores it; before
+      a second value is stored, every reader moves to the SDK that has it.
+    - **A grant or a withdrawal reaches an open page** the way a changed role does: at the
+      next start or when the page comes back into view.
+    - The page is a list of **capability cards** registered per domain
+      (`features/my-room/capabilities.ts`); heating is the first, the next domain of a room
+      (lights, blinds) adds an entry instead of a page.
+    At the deploy the page was opened read-only on the live address as each of the four
+    members, by the personal link alone: every room of the registry got its card, the switch
+    was there for the one member with the permission and for nobody else, no request other
+    than `GET`. Left for the owner: the page on a real iPhone, as the installed application.
     Two things the task left for the frontend at large: Angular Material's calendar and
     paginator are provided by the view that has one, never by the application configuration
     (the calendar there had put 258 kB into the first download), and the initial bundle is now
@@ -512,9 +560,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `database-service` gave the rooms an endpoint of their own instead of honouring them in
   `PATCH` (below). The SDK got its first tests and a `CLAUDE.md` with these traps.
   **1.5.0** (2026-10-08, HAS-211) added `HouseholdProfile` — name, role and rooms, what the
-  web dashboard may know about a member — purely additive;
-  current latest is **1.5.0**, on `database-service` (0.10.0, 2026-10-08, HAS-211) and
-  `heating-service` (1.8.0, 2026-10-08, HAS-197); the
+  web dashboard may know about a member — purely additive; **1.6.0** (2026-10-09, HAS-202)
+  added the enum `MemberPermission` and `permissions`, a list like `rooms` and for the same
+  reasons, on `HouseholdMember` and `HouseholdProfile`;
+  current latest is **1.6.0**, on `database-service` (0.11.0, 2026-10-09, HAS-202);
+  **1.5.0** is on `heating-service` (1.8.0, 2026-10-08, HAS-197); the
   others take it with their next task (`presence-service` on 1.3.0 was run against the JSON
   of 1.4.0: it ignores the new fields). **1.3.0** is on `amx-service` (1.3.0), `presence-service`
   (0.6.0), `water-service` (0.5.1), `boiler-service` (1.2.1,
@@ -532,7 +582,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   registry fails (true of `eaton_devices` since ever). Two things a client has to respect:
   every write is the whole row, so the calls for one member go **one after the other**
   (`PATCH` and `PUT …/rooms` fired together can undo each other, both answering 200); and
-  nothing automated tests the array mapping yet (HAS-207, Testcontainers). The migration was
+  nothing automated tests the array mapping yet (HAS-207, Testcontainers). **0.11.0
+  (HAS-202, deployed 2026-10-09) does the same for the permissions** - a second array column
+  (`V12`), an operation of their own for the same reason, and every mapper that copies a row
+  names the column, because one that forgets it writes `null` over a grant. Its migration
+  was rehearsed the same way, and one thing more was checked there: the old version keeps
+  reading and writing next to the new column, so the rolling deploy was safe. The migration was
   rehearsed the way worth repeating for any migration: the **released image** against a
   throwaway PostgreSQL in Docker (it applies the migrations so far and writes rows through
   its API), then the new build against the same database — never a local run, which talks
@@ -741,7 +796,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.7.0**,
-  `smart-home-sdk` **1.5.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
+  `smart-home-sdk` **1.6.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
   `shelly-cloud-service` and `presence-service` — plus `api-gateway-service` are on the
