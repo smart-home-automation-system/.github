@@ -50,8 +50,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.12.0** (2026-10-09, HAS-202 — "My room", the view of a
-  resident's own rooms on the phone, and the permissions of a member) on top of 0.11.0
+  reviewed and merged by the user. Current release **0.13.0** (2026-10-09, HAS-204 — the administration of the
+  household registry) on top of 0.12.0 (HAS-202 — "My room", the view of a
+  resident's own rooms on the phone, and the permissions of a member), 0.11.0
   (HAS-198 — the rooms of the house on the heating dashboard, on the contract of
   `heating-service` 1.8.0), 0.10.0 (HAS-203 — the presence
   dashboard on the four routed reports of `presence-service`), 0.9.0 (HAS-196 — the heating
@@ -120,8 +121,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     1.5.0, a schema of its own, so a field added to `HouseholdMember` later does not reach the
     browsers by itself. The gateway needed no change (`/household/**` was routed already), which
     also means the full `GET /home/household` is still reachable through it — **kept on purpose** (owner, 2026-10-08: the network is local, and the route is what makes the whole registry callable from Bruno without a port-forward; do not re-raise it). The application
-    never calls it — its mock API answers that path with 404, so a browser test fails on a call
-    that slips back in. "Switched off" and "removed" are one case to the application now: a
+    called it nowhere until 0.13.0; since then (HAS-204) **one page does, the administration of
+    the household**, and nothing a resident's browser opens or a start runs. "Switched off" and "removed" are one case to the application now: a
     member who is not in the answer loses the profile. Not shown on live data: the registry held
     no switched-off member at the deploy, and the repository of `database-service` is mocked in
     its tests (HAS-207), so the first member switched off is the first proof of the filter.
@@ -286,6 +287,45 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     members, by the personal link alone: every room of the registry got its card, the switch
     was there for the one member with the permission and for nobody else, no request other
     than `GET`. Left for the owner: the page on a real iPhone, as the installed application.
+    Since **0.13.0** (HAS-204, 2026-10-09) there is `/household`, the administrator's: the
+    administration of the household registry - members (add, change, switch off and on,
+    remove), their devices, roles, rooms and permissions, and the personal link of every active
+    member with a QR code. **The first page that writes to `database-service`.** What the
+    backend side should know:
+    - **It is the one view that reads the whole registry** (`GET /home/household`, phone
+      numbers and MAC addresses included), every 60 s while it is open and after every change;
+      every other view still asks for the profiles, which it also does after every change.
+    - **It respects "one call after the other"**: a change is up to three calls in a row - the
+      rooms (`PUT`), the permissions (`PUT`), then name / phone / role (`PATCH`) - each only
+      when the form changed it, and no second change is sent while one is under way. The
+      answer of a write is not used; the registry is read again.
+    - **An edit is measured by the member the form was opened with**, so a room or a permission
+      granted from Bruno while the form was open is not written back (found in review).
+    - **It branches on the five household codes** of `CustomErrorDescription`
+      (`NOT_FOUND_HOUSEHOLD_MEMBER`, `HOUSEHOLD_CONFLICT`, `INVALID_HOUSEHOLD_MEMBER`,
+      `DEVICE_EXIST`, `NOT_FOUND_MEMBER_DEVICE`) to word a refusal in English and Polish - a
+      second caller of that wire contract; a renamed constant shows there as the service's
+      English message instead of a translated one. A new code needs a text in the dashboard.
+    - **`HOUSEHOLD_CONFLICT` and `DEVICE_EXIST` each stand for two causes** told apart only in
+      the message, so the form checks both locally (name / phone; MAC / device name) before it
+      sends. Separate codes would let it drop that copy of the rule.
+    - **The offered rooms, roles and permissions are a copy of the SDK's enums**
+      (`data-access/household/registry-values.ts`): a new `RoomName` or `MemberPermission` is
+      offered only after it is added there; one the page does not know is still shown and
+      sent back, never dropped.
+    - **A rename is a new person to everything keyed by the name** - the personal link, the
+      icon on the phone, the rows of `presence-service` - and the form says so. Only the case
+      changed (`borys` to `Borys`), the link and the profile keep working (the dashboard
+      matches names whatever their case since this release); the presence history still stays
+      under the old spelling.
+    - **The administrator cannot rename, demote, switch off or remove their own profile
+      there** (owner, 2026-10-09) - the browser would lose it. Bruno still can.
+    - **No endpoint changed**: `database-service` 0.11.0 and the gateway serve it as they are.
+    At the deploy the page was opened read-only on the live address as the administrator:
+    every member of the registry had a card that agreed with the API (phone, rooms, devices,
+    activity, link), the QR code was drawn, no request other than `GET`. **No write was made to
+    the production registry** - adding, changing and removing were shown on the mock API only;
+    the first real change is the owner's.
     Two things the task left for the frontend at large: Angular Material's calendar and
     paginator are provided by the view that has one, never by the application configuration
     (the calendar there had put 258 kB into the first download), and the initial bundle is now
