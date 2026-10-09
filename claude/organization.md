@@ -50,8 +50,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.13.0** (2026-10-09, HAS-204 — the administration of the
-  household registry) on top of 0.12.0 (HAS-202 — "My room", the view of a
+  reviewed and merged by the user. Current release **0.13.1** (2026-10-09, HAS-204 — the administration of the
+  household registry, 0.13.0, and the fixes of its second review the same day) on top of 0.12.0 (HAS-202 — "My room", the view of a
   resident's own rooms on the phone, and the permissions of a member), 0.11.0
   (HAS-198 — the rooms of the house on the heating dashboard, on the contract of
   `heating-service` 1.8.0), 0.10.0 (HAS-203 — the presence
@@ -299,8 +299,14 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       rooms (`PUT`), the permissions (`PUT`), then name / phone / role (`PATCH`) - each only
       when the form changed it, and no second change is sent while one is under way. The
       answer of a write is not used; the registry is read again.
-    - **An edit is measured by the member the form was opened with**, so a room or a permission
-      granted from Bruno while the form was open is not written back (found in review).
+    - **A first save sends what the form changed; the save after one that failed sends the
+      whole form** (0.13.1) - all three calls. A change that stopped halfway has written its
+      first calls, and what the registry kept is not known for certain; 0.13.0 measured the
+      retry by the member the form was opened with, so a room added by the failed attempt and
+      taken back in the form stayed in the registry. **Nothing guards a form against a second
+      writer** (owner, 2026-10-09: the registry is never changed from the page and from Bruno
+      at the same time) - a role changed from Bruno under an open form is written back by its
+      save. Do not re-raise it.
     - **It branches on the five household codes** of `CustomErrorDescription`
       (`NOT_FOUND_HOUSEHOLD_MEMBER`, `HOUSEHOLD_CONFLICT`, `INVALID_HOUSEHOLD_MEMBER`,
       `DEVICE_EXIST`, `NOT_FOUND_MEMBER_DEVICE`) to word a refusal in English and Polish - a
@@ -316,8 +322,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     - **A rename is a new person to everything keyed by the name** - the personal link, the
       icon on the phone, the rows of `presence-service` - and the form says so. Only the case
       changed (`borys` to `Borys`), the link and the profile keep working (the dashboard
-      matches names whatever their case since this release); the presence history still stays
-      under the old spelling.
+      matches names whatever their case since this release), and since 0.13.1 the language that
+      member chose moves to the new spelling too; the presence history still stays under the
+      old spelling.
     - **The administrator cannot rename, demote, switch off or remove their own profile
       there** (owner, 2026-10-09) - the browser would lose it. Bruno still can.
     - **No endpoint changed**: `database-service` 0.11.0 and the gateway serve it as they are.
