@@ -985,9 +985,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   managed by Boot (`testcontainers-junit-jupiter`, `testcontainers-postgresql` - the 2.x names).
   The cost: `mvn verify` there needs a running Docker, and the test fails rather than being
   skipped without one. The pattern to start from for HAS-207. `water-service` follows it since
-  0.6.0 (HAS-200) for its own history query - and since that repository is the scaffold of new
-  services, a service scaffolded from its pom inherits the two test dependencies without a
-  test that uses them.
+  0.6.0 (HAS-200) for its own history query. That repository is the scaffold of new
+  services: the `new-service` skill asks whether the service talks to a database and leaves the
+  whole database part out - Testcontainers included - when it does not.
 - **Calling a device or gateway outside the cluster** — what `presence-service` learned on
   the UniFi gateway (HAS-149), worth checking in every client of an external system:
   - A self-signed certificate is **pinned by fingerprint**
