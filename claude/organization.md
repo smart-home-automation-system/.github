@@ -165,7 +165,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       2026-10-10): `measuredAt` next to `water` and `circulation`. The page does not read it
       yet - it still says only when it last asked, and a sensor that fell silent reads as
       current; showing the age of the reading, out of date after two missed cycles (6 minutes),
-      goes with HAS-201 or a small frontend task of its own.
+      is part of HAS-201 (owner, 2026-10-10).
     - **Before its first reading `water-service` answers 200 with no body**; the dashboard shows
       "nothing measured yet". Keep that or change both sides together.
     - **In the JSON of `boiler-service` the Java field `isWorking` is `working`**, and its notes
