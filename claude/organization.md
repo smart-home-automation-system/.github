@@ -50,7 +50,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.13.1** (2026-10-09, HAS-204 — the administration of the
+  reviewed and merged by the user. Current release **0.14.0** (2026-10-11, HAS-201 — the charts of the
+  temperature histories, of the hot water and of every room, and the Overview as the house at a
+  glance) on top of 0.13.1 (2026-10-09, HAS-204 — the administration of the
   household registry, 0.13.0, and the fixes of its second review the same day) on top of 0.12.0 (HAS-202 — "My room", the view of a
   resident's own rooms on the phone, and the permissions of a member), 0.11.0
   (HAS-198 — the rooms of the house on the heating dashboard, on the contract of
@@ -162,10 +164,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       `WaterService.updateWaterHeatingStatus`; no endpoint exposes them. Change them in
       `water-service` and `HOT_WATER_BAND` of the dashboard has to follow.
     - **The temperatures carry the time of measurement since `water-service` 0.6.0** (HAS-200,
-      2026-10-10): `measuredAt` next to `water` and `circulation`. The page does not read it
-      yet - it still says only when it last asked, and a sensor that fell silent reads as
-      current; showing the age of the reading, out of date after two missed cycles (6 minutes),
-      is part of HAS-201 (owner, 2026-10-10).
+      2026-10-10): `measuredAt` next to `water` and `circulation`. **Since 0.14.0 the page reads it**
+      (HAS-201): the cards of the tank and of the circulation say when the sensors were read,
+      and call the reading out of date after two missed cycles - 6 minutes, a copy of the
+      3-minute interval of the service, like the band. Against a `water-service` below 0.6.0
+      nothing is said about the age. The card "Heating of the water" has no such time: the flag
+      of `status/active` is not dated, and stays as it was while the sensor is silent.
     - **Before its first reading `water-service` answers 200 with no body**; the dashboard shows
       "nothing measured yet". Keep that or change both sides together.
     - **In the JSON of `boiler-service` the Java field `isWorking` is `working`**, and its notes
@@ -335,7 +339,50 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     activity, link), the QR code was drawn, no request other than `GET`. **No write was made to
     the production registry** - adding, changing and removing were shown on the mock API only;
     the first real change is the owner's.
-    Two things the task left for the frontend at large: Angular Material's calendar and
+    Since **0.14.0** (HAS-201, 2026-10-11) the stored temperatures are drawn, and `/overview` is
+    the house at a glance. All of it read-only. What the backend side should know:
+    - **It needs `heating-service` 1.9.0 and `water-service` 0.6.0 or later**; against an older
+      one a chart shows the 404 as its failure and the rest of the page works.
+    - **Two new calls, each made by an open view only**: `GET
+      /home/water/temperature/history` by the hot-water page, `GET
+      /home/heating/rooms/{name}/temperature/history` by a room opened on `/heating` - one room
+      at a time, as the service asks. Asked when the view opens, when another period is chosen
+      (24 hours, 7 or 30 days) and when the range moves on by itself, at every full hour or at
+      midnight - not polled in between.
+    - **The page never chooses the bucket and always asks from a full hour or a midnight of the
+      house** (24 hours end with the running hour, 7 and 30 days with the midnight after
+      today), so the first bucket lies on the axis. It reads `bucketSeconds` to find the gaps:
+      two points further apart are a break in the line, never bridged. Change the widths in a
+      service and the charts follow by themselves.
+    - **The figures under a chart are of the buckets, not of the readings**: the lowest and the
+      highest *point* of the answer. Over 30 days a peak of the tank reads lower than over 24
+      hours, because a 2-hour bucket averages it.
+    - **The dashed line of a room is the schedule the room has today**, laid over every day of
+      the chart and named "current schedule" (owner, 2026-10-09): the target of a past day is
+      stored nowhere. Should `heating-service` ever store it, the chart has to learn it.
+    - **The 38 / 42 band is shaded in the chart of the tank** - a third place the copy of
+      `HOT_WATER_BAND` shows.
+    - **The overview makes six calls, each every 30 or 60 s while it is open**: `GET
+      /home/heating`, `/heating/rooms`, `/heating/temperature/sensors`,
+      `/water/status/temperature`, `/boiler/status` and `/presence/residents/presence` - the
+      reads of the dashboards, nothing new. A tile per call, each with its own failure. The
+      switch of the heating on it is the card of `/heating`: the same question first, the same
+      three calls.
+    - **"Coldest" and "warmest" are rooms of the house**: `sanctum` and the garden - the floor
+      "outside" of the frontend's `FLOORS` - are counted and left out of the two.
+    - **The chart library (ECharts) is a file of its own**, 534 kB, downloaded by the first view
+      that draws a chart and kept by the service worker; the first download of the application
+      is 665 kB.
+    At the deploy the three views were opened read-only on the live address as the
+    administrator: 15 rooms and 13 sensors on the overview, the tank and the circulation as the
+    API gave them with the age of the reading, the hot-water history over 24 hours, 7 and 30
+    days and the history of one room over 24 hours and 7 days drawn, no failure shown, no
+    request other than `GET`.
+    Two rules of the owner from this round (2026-10-10): **cards side by side end on one
+    line** - the tiles of the overview are of one height, and on the hot-water page the tank and
+    the two cards next to it are; and the tank and the circulation have **a card each**,
+    although one call feeds both.
+    Two things HAS-204 left for the frontend at large: Angular Material's calendar and
     paginator are provided by the view that has one, never by the application configuration
     (the calendar there had put 258 kB into the first download), and the initial bundle is now
     648 kB against a budget of 650 kB - the next view with a new Material control trips the
