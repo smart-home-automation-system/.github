@@ -18,7 +18,7 @@ except `deployment-tools`.
 | `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.3** |
 | `ai-service` | 6004 | AI integration |
 | `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192 — which, since 0.10.0, asks for them through a read of its own, `GET /home/household/profiles`; HAS-211 — and, since 0.11.0, each member's permissions, what the registry grants one member beyond the role; HAS-202). Current release **0.11.0** |
-| `water-service` | 6006 | Water control |
+| `water-service` | 6006 | Water control: every 3 minutes it reads the hot-water and the circulation temperature from a Shelly Uni, stores the reading and keeps the flag `boiler-service` polls (`GET /home/water/status/active`; on below 38 °C, off above 42). Since **0.6.0** (2026-10-10, HAS-200) `GET /home/water/status/temperature` carries `measuredAt` - the time of the row it answers, a local date-time of the house to the second; the service repeats its last row for as long as the sensor is silent, so that field is the only thing that tells a current reading from an old one - and it serves the stored temperatures, the data of the hot-water charts of the dashboard (HAS-201): `GET /home/water/temperature/history?from=&to=` answers `{from, to, bucketSeconds, points: [{at, water, circulation}]}`. The rules are the ones of the room history of `heating-service` (local date-times without an offset, `from` before `to`, start included and end not, at most 31 days, years 2000 to 9999, anything else a 400 without a code; **a bucket without a reading has no point**; **buckets are aligned to the clock of the house, not to `from`**; the two nights of the clock change), with widths of its own: **5 min up to 2 days, 30 min up to 8, 2 h beyond** (at most 576 / 384 / 372 points) - a reading is stored every 3 minutes, so one missed poll can leave a 5-minute bucket empty. Whether the circulation pump ran is not stored and not in the history. The read shares the pool of 2 with the poll and has no timeout, like the write (a month: 15 000 rows through the index on `updated_at`, 370 points in 240 ms through the gateway) - one range at a time. Current release **0.6.0** |
 | `boiler-service` | 6007 | Boiler control: drives the furnace and both pumps as relays of one Shelly Pro 4. Since 1.3.0 (2026-10-07, HAS-109) it also tells the household when that Shelly stops working — an alert once its calls have been failing for 5 minutes, a reminder every hour, an info when it works again — which makes it a publisher on the `/notification` virtual host. Current release **1.3.0** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129). Current release **0.1.1** |
 | `presence-service` | 6009 | Household presence monitoring (epic HAS-147). It reads the clients connected to the home network from the UniFi gateway (0.2.0, HAS-149) and, since 0.3.0 (2026-10-01, HAS-151), runs the presence engine: every minute it matches them against the household registry of `database-service`, and a member whose devices all stay unseen for 10 minutes becomes ABSENT, dated from the last sighting. Status changes are stored in its own database (`home-automation-presence`) — a row per change, a confirming pass only moves `last_checked_at`. The state lives in the memory of one instance, so the Deployment uses `Recreate` and must not be scaled. Since **0.4.0** (2026-10-05, HAS-152) it has a reporting API: `GET /home/presence/residents/presence` (every active member with `present`, `since`, `lastCheckedAt`) and `GET /home/presence/residents/{name}/report?from=&to=` (the periods at home within a range of at most 366 days, local date-times, the one still going on marked `open`) — residents are identified by **name**, there is no id. **0.5.0** (2026-10-05, HAS-153) added the aggregates: `GET /home/presence/residents/{name}/report/daily` (per day `secondsAtHome`, `firstArrival`, `lastDeparture`, `presencePercentage`) and `GET /home/presence/house/report` (one timeline of occupied / empty stretches, per day `secondsOccupied`, `secondsEmpty`, `wasEmpty`). Both cover only what was observed and name the bounds (`observedFrom`, `observedUntil`); a member inside their grace period keeps the house occupied (the report asks the tracker), while an outage across a status change still reads as empty — know that before acting on `wasEmpty`. All four reports are routed by the gateway; the diagnostic `GET /home/presence/clients` (every MAC address on the network) is deliberately **not**. **0.6.0** (2026-10-05, HAS-154) closed the scope of the epic with the retention: every night at 03:00 the rows **last checked** more than `presence.retention` ago (`P365D`; 7 days to ten years, a bare number is days) are deleted — by the last check, so the current row of a watched member always survives — and the statistics never count anything before that horizon as observed. Current release **0.6.0**; notifications are not planned yet |
@@ -161,9 +161,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     - **The 38 / 42 °C band on the gauge is a copy** of the two constants in
       `WaterService.updateWaterHeatingStatus`; no endpoint exposes them. Change them in
       `water-service` and `HOT_WATER_BAND` of the dashboard has to follow.
-    - **The temperatures carry no time of measurement**, so the page can only say when it last
-      asked, and a sensor that fell silent reads as current. The field is planned with HAS-200
-      (added to that task on 2026-10-08); the dashboard shows the age once it exists.
+    - **The temperatures carry the time of measurement since `water-service` 0.6.0** (HAS-200,
+      2026-10-10): `measuredAt` next to `water` and `circulation`. The page does not read it
+      yet - it still says only when it last asked, and a sensor that fell silent reads as
+      current; showing the age of the reading, out of date after two missed cycles (6 minutes),
+      goes with HAS-201 or a small frontend task of its own.
     - **Before its first reading `water-service` answers 200 with no body**; the dashboard shows
       "nothing measured yet". Keep that or change both sides together.
     - **In the JSON of `boiler-service` the Java field `isWorking` is `working`**, and its notes
@@ -610,11 +612,12 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   web dashboard may know about a member — purely additive; **1.6.0** (2026-10-09, HAS-202)
   added the enum `MemberPermission` and `permissions`, a list like `rooms` and for the same
   reasons, on `HouseholdMember` and `HouseholdProfile`;
-  current latest is **1.6.0**, on `database-service` (0.11.0, 2026-10-09, HAS-202) and
-  `heating-service` (1.9.0, 2026-10-10, HAS-199); the
+  current latest is **1.6.0**, on `database-service` (0.11.0, 2026-10-09, HAS-202),
+  `heating-service` (1.9.0, 2026-10-10, HAS-199) and `water-service` (0.6.0, 2026-10-10,
+  HAS-200); the
   others take it with their next task (`presence-service` on 1.3.0 was run against the JSON
   of 1.4.0: it ignores the new fields). **1.3.0** is on `amx-service` (1.3.0), `presence-service`
-  (0.6.0), `water-service` (0.5.1), `boiler-service` (1.2.1,
+  (0.6.0), `boiler-service` (1.2.1,
   HAS-181) and `shelly-cloud-service` (0.1.1, HAS-183).
   **`database-service` 0.9.0 (HAS-192, deployed 2026-10-07) stores and serves both.**
   `GET /home/household` answers every member with a `role` (always) and `rooms` (left out
@@ -981,7 +984,10 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   run by hand in the test, and the JVM put on the zone of the house. Two dependencies, both
   managed by Boot (`testcontainers-junit-jupiter`, `testcontainers-postgresql` - the 2.x names).
   The cost: `mvn verify` there needs a running Docker, and the test fails rather than being
-  skipped without one. The pattern to start from for HAS-207.
+  skipped without one. The pattern to start from for HAS-207. `water-service` follows it since
+  0.6.0 (HAS-200) for its own history query - and since that repository is the scaffold of new
+  services, a service scaffolded from its pom inherits the two test dependencies without a
+  test that uses them.
 - **Calling a device or gateway outside the cluster** — what `presence-service` learned on
   the UniFi gateway (HAS-149), worth checking in every client of an external system:
   - A self-signed certificate is **pinned by fingerprint**
