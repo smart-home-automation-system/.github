@@ -1310,6 +1310,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   see the note under the library table.
 - CI/CD — GitHub Actions in every repo:
   - `CI.yml` — build + tests on push/PR.
+    **Its Discord message is being cut down to the status and the repository** (owner,
+    2026-10-11): one step instead of the two (`-> success` / `-> non-success`), with
+    `if: always()`, `status: ${{ job.status }}`, `title: "<repo-name>"`, `url` pointing at the
+    run, `nocontext: true` and `notimestamp: true` - an embed that reads `Success: <repo>`,
+    `Failure: <repo>` or `Cancelled: <repo>` (a run cancelled by a newer push used to arrive
+    as a failure). **There is no task for it: a repository is converted in the PR of the next
+    task that touches it** - check `CI.yml` in every task. Converted so far: none (all 15
+    repositories with a `CI.yml` have the old form); the look on the channel is to be checked
+    on the first one. Add a repository to this list when it is done.
   - `sonar.yml` — SonarCloud analysis.
   - Services: `release.yml` — release builds a Docker image pushed to Docker Hub.
   - Libraries: `package.yml` — release publishes the artifact to GitHub Packages.
