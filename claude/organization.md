@@ -1280,6 +1280,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   mean dropping Boot's native structured logging for `net.logstash.logback` plus
   `org.zalando:logbook-logstash` (which also drags `jackson-databind` back in) — deliberately
   not done.
+- **Code moves into `cholewa-commons` once more than three services use it** (owner's rule,
+  2026-10-11, HAS-217). Up to three copies stay in the services: do not propose the move in a
+  review, and do not create a task for it - note the copy in the `CLAUDE.md` of each service
+  that carries it, so the fourth one is recognised. The precedent is the RabbitMQ connection
+  name and the notification publisher, moved when four services had them (HAS-205). The first
+  case under the rule: `BrokerPasswordCheck`, in `heating-service` and `boiler-service` - two
+  copies, so it stays.
 - Libraries are consumed from GitHub Packages: org libraries from
   `maven.pkg.github.com/smart-home-automation-system/*`, the personal-account libraries
   (`cholewa-commons`, `cholewa-security`) from `maven.pkg.github.com/magikabdul/*` —
