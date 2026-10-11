@@ -597,7 +597,15 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   - A refused connection (a service restarting) is repeated the same way, which costs
     milliseconds.
   - The same stale-connection case can exist between two services (their `WebClient` pools
-    have no idle limit of their own); nothing has shown it yet.
+    have no idle limit of their own). It has shown once, in a test: `DeviceDatabaseClientTest`
+    of `amx-service` failed on `main` when a case was handed the pooled connection to the
+    closed server of the case before it (HAS-216, 2026-10-11) - Reactor Netty does not repeat
+    a request that ends as "prematurely closed before response". In production that is the
+    first datagram after `database-service` restarts: a 502 and **one lost temperature
+    reading, accepted by the owner (2026-10-11) - do not re-raise it**. What the test taught:
+    a `MockWebServer` per test gets no fixed port, and its client no connection pool
+    (`HttpClient.newConnection()`), because the clients `WebClient.create()` builds share one
+    pool keyed by host and port.
   With 0.4.0 the gateway moved to `cholewa-commons` 1.7.0.
 
 ## Pending architecture changes (decided 2026-07, executed by the user)
