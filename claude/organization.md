@@ -126,8 +126,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     called it nowhere until 0.13.0; since then (HAS-204) **one page does, the administration of
     the household**, and nothing a resident's browser opens or a start runs. "Switched off" and "removed" are one case to the application now: a
     member who is not in the answer loses the profile. Not shown on live data: the registry held
-    no switched-off member at the deploy, and the repository of `database-service` is mocked in
-    its tests (HAS-207), so the first member switched off is the first proof of the filter.
+    no switched-off member at the deploy; since HAS-207 (2026-10-11) the filter is run on a real
+    PostgreSQL by the tests of `database-service`.
     With the same release the application got one way to `localStorage`
     (`core/storage/browser-storage.ts`) instead of a copy per store.
   - **Installed on the home screen since 0.7.0** (HAS-194, 2026-10-08). Five things it settled,
@@ -462,14 +462,16 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `heating-service` 1.7.1, `notification-service` 0.4.3): the management UI shows
   `heating-service-69bccdf7f9-xzfxt`, which tells the old pod from the new one during a
   rollout. Each service has the same small `ConnectionNameStrategy` bean in its `RabbitConfig`
-  — four copies with `boiler-service` (1.3.0), accepted by the owner for now; moving it into
-  `cholewa-commons` is HAS-205, the adoption HAS-206. It takes
+  — four copies with `boiler-service` (1.3.0). **Since `cholewa-commons` 1.8.0 (HAS-205,
+  2026-10-11) the library brings it**, as auto-configuration for every application with Spring
+  AMQP and an application name; the four services drop their copy when they take 1.8.0
+  (HAS-206). The bean takes
   `HOSTNAME` **only when it starts with `spring.application.name`**: outside Kubernetes the
   variable is not simply missing — Git Bash, Linux shells and plain Docker set it to a
   workstation name or a container id, and an empty value bypasses a placeholder default —
   so everything else becomes `<service>-local`. A second connection of the same pod adds what
   it is for (`<pod>/notification` in `heating-service`, opened on the first publish). A new
-  service that talks to the broker copies the bean.
+  service that talks to the broker takes `cholewa-commons` 1.8.0 or later and declares nothing.
 - **The boiler room Shelly is watched (HAS-109, `boiler-service` 1.3.0, deployed 2026-10-07).**
   `ShellyAvailabilityMonitor` is told by `ShellyClient` how every call ended and is asked at
   the end of every control pass. The numbers are the owner's: alert (`error`) after 5 min,
@@ -599,7 +601,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   its pom and README badges may still show the old versions.
   Progress: `cholewa-commons` migrated and released as **1.0.0** (2026-07-22, HAS-117) —
   a breaking release (Java 21 bytecode, Jackson 3); consumers stay on 0.2.x until their
-  own migration. It has since had ten releases — **1.0.1** (2026-07-23, HAS-131 —
+  own migration. It has since had eleven releases — **1.0.1** (2026-07-23, HAS-131 —
   select `ExceptionProcessor` by exception hierarchy, not exact class), **1.1.0**
   (2026-07-24, HAS-132 — log handled errors in every `ExceptionProcessor`), **1.2.0**
   (2026-07-26, HAS-137 — render database integrity violations as 400 instead of 500),
@@ -614,10 +616,24 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   below), **1.5.1** (2026-09-27, HAS-150 — validation bound 2 s instead of 5 s, and the docs
   describe the actual, gradual recovery), **1.6.0** (2026-10-06, HAS-180 — Bean Validation
   messages pinned to the root bundle, English for the built-in constraints, see the error
-  message convention below; also the first library release built on Boot 4.1.1) and **1.7.0**
+  message convention below; also the first library release built on Boot 4.1.1), **1.7.0**
   (2026-10-06, HAS-174 — an optional machine-readable `code` in `ErrorMessage` and
-  `DownstreamErrors.read`, see the error contract note below); current
-  latest is **1.7.0**, on `database-service` (0.8.0, 2026-10-06, HAS-175), `amx-service` (1.3.0, 2026-10-06, HAS-176),
+  `DownstreamErrors.read`, see the error contract note below) and **1.8.0** (2026-10-11,
+  HAS-205 — what four services had each written for RabbitMQ: the connection named after the
+  pod, on by default (`cholewa.rabbit.pod-connection-name: false` switches it off; a
+  `ConnectionNameStrategy` bean of the application wins), and `NotificationPublisher`, the
+  publisher of household notifications on the headers exchange — opt-in with
+  `cholewa.notification.enabled`, `cholewa.notification.env` mandatory and without a default,
+  so that a workstation cannot publish into the queues of production. It answers only after
+  the broker confirmed the message **and** did not return it, and fails with
+  `NotificationPublishException` otherwise (refused, routed to no queue, not confirmed within
+  10 s); nothing is retried or swallowed, that stays the caller's. The context does not start
+  when the template lacks correlated confirms, returns or `mandatory`, or when there are several
+  templates and none is primary. A service that already has a connection elsewhere builds the
+  second one with `NotificationConnection.create(...)` - a factory called by hand, never a
+  `ConnectionFactory` bean. Spring AMQP is a `provided` dependency: a consumer without a broker
+  gets none of it. **Not run against a real broker yet** - the first adoption (HAS-206) is that
+  proof, in the minute after its deploy. No consumer is on 1.8.0 yet); **1.7.0** is on `database-service` (0.8.0, 2026-10-06, HAS-175), `amx-service` (1.3.0, 2026-10-06, HAS-176),
   `boiler-service` (1.2.1, 2026-10-06, HAS-181), `ai-service` (0.2.1, 2026-10-06, HAS-182),
   `shelly-cloud-service` (0.1.1, 2026-10-06, HAS-183), `heating-service` (1.7.0, 2026-10-06,
   HAS-169), `water-service` (0.5.1, 2026-10-06, HAS-169) and `notification-service` (0.4.2,
@@ -679,7 +695,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   registry fails (true of `eaton_devices` since ever). Two things a client has to respect:
   every write is the whole row, so the calls for one member go **one after the other**
   (`PATCH` and `PUT …/rooms` fired together can undo each other, both answering 200); and
-  nothing automated tests the array mapping yet (HAS-207, Testcontainers). **0.11.0
+  the array mapping is tested on a real PostgreSQL since HAS-207 (2026-10-11, no release - tests
+  only): with a running Docker `mvn verify` starts a `postgres:17-alpine` (Testcontainers),
+  applies every migration to it and runs the repositories of the registry and of the Eaton
+  configuration through the whole context, pooled factory of `cholewa-commons` included
+  (`database.ssl-mode=disable` for the container). Without a Docker those classes are
+  **skipped**, unlike in `heating-service` and `water-service`; a test that runs only where
+  `CI=true` fails when there is none, so the build on GitHub cannot skip them. **0.11.0
   (HAS-202, deployed 2026-10-09) does the same for the permissions** - a second array column
   (`V12`), an operation of their own for the same reason, and every mapper that copies a row
   names the column, because one that forgets it writes `null` over a grant. Its migration
@@ -892,7 +914,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   groupId `cloud.cholewa`. New services and libraries start on the target versions.
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
-  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.7.0**,
+  parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.8.0**,
   `smart-home-sdk` **1.6.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
@@ -1031,7 +1053,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   run by hand in the test, and the JVM put on the zone of the house. Two dependencies, both
   managed by Boot (`testcontainers-junit-jupiter`, `testcontainers-postgresql` - the 2.x names).
   The cost: `mvn verify` there needs a running Docker, and the test fails rather than being
-  skipped without one. The pattern to start from for HAS-207. `water-service` follows it since
+  skipped without one. `database-service` started from it in HAS-207 and went its own way in
+  two points (the whole context instead of the slice, skipped without a Docker - above).
+  `water-service` follows it since
   0.6.0 (HAS-200) for its own history query. That repository is the scaffold of new
   services: the `new-service` skill asks whether the service talks to a database and leaves the
   whole database part out - Testcontainers included - when it does not.
