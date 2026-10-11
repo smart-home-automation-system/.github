@@ -178,7 +178,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     - **Missing is never read as "off"**: a device without `working`, or an answer without
       `active`, is shown as unknown.
     - Found on the way: the gateway answered one call with a bare 500 after a pooled connection
-      to `water-service` was reset - HAS-212, in the sprint.
+      to `water-service` was reset - fixed in the gateway 0.4.0 (HAS-212, 2026-10-11; see
+      External traffic in the architecture notes).
     Since **0.9.0** (HAS-196, 2026-10-08) there is a third, `/heating`, and it is **not
     read-only**: besides `GET /home/heating`, `GET /home/heating/status/active` (30 s) and
     `GET /home/heating/temperature/sensors` (60 s) the page sends
@@ -573,6 +574,29 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   home, with a year of history, to whoever reaches the ingress was **accepted by the owner on
   2026-10-05** — do not re-raise it in reviews, but a new presence endpoint still gets its own
   entry and its own look at what it exposes.
+- **A broken connection to a service is a 502 with a body, and a read is repeated once**
+  (gateway **0.4.0**, HAS-212, deployed 2026-10-11). The bare 500 the dashboard met had this
+  cause: a pooled connection to a service that sat idle for more than a day lost its NAT entry
+  on the node (conntrack forgets an established connection after 24 h), so the close of the
+  service never arrived and the next call on it was reset - and Spring reads "connection reset
+  by peer" as the *caller* having gone, answering a 500 without a body. What a client and a
+  service owner should know:
+  - **The pool lets go before anything else does**: a connection idle for 2 minutes or older
+    than 30 minutes is closed, checked every 30 s. Those numbers assume nothing between the
+    gateway and a service drops an idle connection sooner than 2 minutes.
+  - **A failed connection to a service answers 502** in the error contract of
+    `cholewa-commons`, logged by the gateway with the route; a service that does not answer in
+    time is still a 504.
+  - **Only a `GET` without a body is repeated, once, and only when the attempt broke within
+    1 s** - a connection that was dead before the request left. A `POST` is never sent twice,
+    and a read that broke later is not run again. The gateway logs the repetition at WARN
+    (`Repeating GET on route [...] after a broken connection`): a line now and then is the
+    mechanism working, a steady stream means the pool limits no longer fit.
+  - A refused connection (a service restarting) is repeated the same way, which costs
+    milliseconds.
+  - The same stale-connection case can exist between two services (their `WebClient` pools
+    have no idle limit of their own); nothing has shown it yet.
+  With 0.4.0 the gateway moved to `cholewa-commons` 1.7.0.
 
 ## Pending architecture changes (decided 2026-07, executed by the user)
 
@@ -638,8 +662,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   `shelly-cloud-service` (0.1.1, 2026-10-06, HAS-183), `heating-service` (1.7.0, 2026-10-06,
   HAS-169), `water-service` (0.5.1, 2026-10-06, HAS-169) and `notification-service` (0.4.2,
   2026-10-06, HAS-179) — every other consumer takes it with its next task.
-  **1.5.1** is on `presence-service` (0.6.0) and `api-gateway-service` (0.3.1). They move to the latest release with
-  their next task — the rule is that a service always carries the latest release of the own
+  `api-gateway-service` took 1.7.0 with 0.4.0 (2026-10-11, HAS-212), hours before 1.8.0 was released.
+  **1.5.1** is on `presence-service` (0.6.0). Each moves to the latest release with
+  its next task — the rule is that a service always carries the latest release of the own
   libraries, no-op or not. Every service with a connection pool is on 1.5.1 or later since
   `water-service` 0.5.0 (2026-10-04), so all four validate their connections on acquire.
   `cholewa-security` migrated and released as **1.0.0**
