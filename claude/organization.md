@@ -447,7 +447,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - Reactive stack everywhere: Spring WebFlux, no blocking calls in service code.
 - Async messaging via RabbitMQ: `amx-service`, `heating-service`, `notification-service` and,
   since HAS-109, `boiler-service` (a publisher of notifications only).
-  Two virtual hosts, one broker user each: `/temperature` (user `temperature`; `amx-service`
+  Two virtual hosts for the services, one broker user each (a third, `/device`, is the
+  channel of the devices - below): `/temperature` (user `temperature`; `amx-service`
   publishes `TemperatureMessage` to the fanout exchange `temperature.events`,
   `heating-service` consumes `temperature.prod.heating`) and `/notification` (user
   `notification`; the **headers** exchange `notification` routes by the `category`
@@ -459,6 +460,41 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   from the broker definitions in `deployment-tools`, no service declares them. The secret
   `rabbitmq` holds one key per broker user, `<user>-password`; user names are not secrets
   (`amx-service` gets `temperature` as a plain value in its manifest).
+- **The broker also speaks MQTT - the channel of the Shelly Gen2+ devices** (HAS-219, applied
+  2026-10-11; the first task of the device platform epic, HAS-218). The plugin `rabbitmq_mqtt`
+  listens on **1883**, published on the LAN next to AMQP. No service uses it yet; what the
+  ones to come have to know:
+  - **A third virtual host, `/device`**: every MQTT client lands there and publishes to
+    `amq.topic`. Two broker users - `shelly` (the devices: may publish, may neither declare
+    nor read anything) and `device` (the services, over AMQP; `amx-service` will publish
+    there too) - with the keys `shelly-password` and `device-password` in the secret
+    `rabbitmq`. There is no anonymous access.
+  - **Eight queues, `device.<env>.<domain>`** - `prod` and `dev`, for `weather`, `blinds`,
+    `light` and `heating` - each bound to `amq.topic` with `#`: **every queue gets every
+    event of every device, and its service filters** by the device registry. TTL 10 minutes,
+    no dead-letter queue - a device state that old is worth nothing. The `dev` queues have no
+    consumer most of the time and simply expire. Like everything on the broker they come from
+    the definitions in `deployment-tools`; no service declares them.
+  - **The topic is the routing key, with `/` turned into `.`**: `<id>/status/switch:0` arrives
+    as `<id>.status.switch:0` (the `:` stays). A dot in a topic stays a dot, so keep dots out
+    of topic prefixes.
+  - **A device that subscribes is disconnected.** `shelly` may not declare a queue; the broker
+    answers a `SUBSCRIBE` with a refusal and **closes the connection**, and what the client
+    published after it is lost. A Shelly Gen2 subscribes by default, so every device is set
+    up with `enable_rpc: false` and `enable_control: false` - which also means **a device
+    cannot be commanded over MQTT**; commands stay on HTTP.
+  - **Read the `status` topics, not `events/rpc`.** Shown on a real device (a Plus Plug S,
+    firmware 1.7.5): with `enable_rpc` off it sends no RPC notifications at all, whatever
+    `rpc_ntf` says. With `status_ntf: true` it publishes `<id>/online` and
+    `<id>/status/<component>` - the whole component about once a minute and at once on every
+    change, with the `source` of the change. The task had named `events/rpc` as the example;
+    that key never arrives.
+  - **A change of the MQTT settings of a device takes a restart of the device.**
+  - Two things about the broker itself, both in the README of `deployment-tools/k8s/rabbitmq`:
+    the init Job cannot log in to the running broker, so definitions are imported there with
+    `rabbitmqctl import_definitions`; and the owner's rule (2026-10-11) - **a backup of the
+    broker before any work on it starts and a second one when it is finished**, only the last
+    pair kept.
 - **A RabbitMQ connection is named after its pod** (HAS-106, 2026-10-06; `amx-service` 1.3.1,
   `heating-service` 1.7.1, `notification-service` 0.4.3): the management UI shows
   `heating-service-69bccdf7f9-xzfxt`, which tells the old pod from the new one during a
