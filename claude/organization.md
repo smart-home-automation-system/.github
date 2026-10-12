@@ -493,7 +493,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   - **The devices are connected** (HAS-220, 2026-10-12): every Shelly Gen2+ of the house that
     answers - 39 of them, the heating relays and the Pro 4PM of the boiler room included - by
     a session of the owner that manages the Shelly devices, from a prompt kept in
-    `deployment-tools/scripts/shelly` next to the device list; there is no script. What the
+    `deployment-tools/scripts/shelly` next to the device list; there is no script. The two
+    battery thermometers followed the same day, set from the Shelly cloud. What the
     services to come have to reckon with:
     - **About 130 messages a minute arrive in every `device.*` queue**, whatever the domain of
       the queue: a switch repeats its whole status about once a minute, a four-channel relay
@@ -508,6 +509,13 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       the Shelly cloud, and so on - a restart is not a change of state.
     - **A device reconnects now and then** (Wi-Fi) and is back within seconds; what it would
       have published in between is lost. `online` is published on every connect.
+    - **A battery sensor is on the broker only while awake** - every two hours or on a change:
+      it connects, publishes `status.temperature:0`, `status.humidity:0` and
+      `status.devicepower:0` once and is gone. Its `online: false` means asleep, not broken,
+      and a reading is at most as old as its sleep - the 10 minutes of the queue hold it only
+      for a consumer that is running.
+    - **`online: false` is the last will of a device**: the broker publishes it whenever a
+      connection ends without a goodbye, a refused attempt included.
     - **Not everything is there**: the wall display cannot be connected - it subscribes
       whatever its settings say, and the broker disconnects it; the Bluetooth sensors behind
       the gateway (the weather station among them) have published nothing so far; the Gen1
