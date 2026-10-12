@@ -17,7 +17,7 @@ except `deployment-tools`.
 | `heating-service` | 6002 | Heating control; since 1.5.0 (HAS-94) it also watches the temperature sensors and raises a notification when one has been silent for 24 h. Since 1.7.0 (HAS-169) every Shelly call has a connect and a response timeout, and a relay that fails is skipped instead of ending the pass of its room. Since **1.8.0** (2026-10-08, HAS-197) it serves the state it holds in memory, read-only and through the gateway's `/heating/**` route: `GET /home/heating/rooms`, `GET /home/heating/rooms/{name}` (the name as the list gives it, `living room`, in any case; an unknown one is a 404 with the code `NOT_FOUND_ROOM`) and `GET /home/heating/floor-pump` - the contract of the dashboard's room views (HAS-198, HAS-202). What a client has to know: a missing field means "not known", never off or zero (`temperature` only for a room that never reported - at a start every room gets its last stored reading from the database; `working` until the relay has answered; `inSchedule` and `heatingEnabled` until a control pass has decided them, which takes the next reading of the room - so right after a deploy most rooms show a temperature and nothing else); `inSchedule` / `targetTemperature` are the control loop's decision at the last reading (a schedule is on **and** the room is colder than it asks), so they vanish once the room is warm; **`scheduledTemperature` is the target to show** - what the schedules ask for at the moment of the call, computed by the service's clock, so a client works nothing out from `schedules`. `sanctum` and the rooms without a heater never get `heatingEnabled`. Since **1.9.0** (2026-10-10, HAS-199) it also serves the stored temperatures of a room, the data of the charts of the dashboard (HAS-201): `GET /home/heating/rooms/{name}/temperature/history?from=&to=` answers `{room, from, to, bucketSeconds, points: [{at, value}]}`. What a client has to know: the range follows the rules of the reports of `presence-service` (local date-times without an offset, `from` before `to`, start included and end not) with a limit of 31 days and years 2000 to 9999, anything else is a 400 without a code; **the service chooses the bucket** - 20 min up to 2 days, 1 h up to 8, 3 h beyond - and names it in `bucketSeconds`; **a bucket without a reading has no point**, so two points further apart than `bucketSeconds` are a gap; **buckets are aligned to the clock of the house, not to `from`** - ask from a midnight or a full hour, or the first point lies before the range; on the night the summer time begins the history has a gap of an hour no sensor caused. The room is named as for `/rooms/{name}`, an unknown one is the 404 `NOT_FOUND_ROOM`; unlike the rooms this read asks the database, on the pool of 2 the listener writes through (a month of the busiest room: 15 000 rows, 170 ms) - one room at a time. Current release **1.9.2** |
 | `notification-service` | 6003 | Notifications: consumes the `alert` and `info` queues and posts each message on the Discord channel `alerts` as an embed colored by its level (HAS-94). The two queues keep a listener each, in one class (`RabbitNotificationConsumer`) — **two containers on purpose**: one listener on both queues was tried in HAS-179 and dropped, because a container only warns when one of its queues is missing, a publisher can overwrite the `amqp_consumerQueue` header the default level would be read from, and a shared channel redelivers the unacknowledged messages of both. Current release **0.4.4** |
 | `ai-service` | 6004 | AI integration |
-| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192 — which, since 0.10.0, asks for them through a read of its own, `GET /home/household/profiles`; HAS-211 — and, since 0.11.0, each member's permissions, what the registry grants one member beyond the role; HAS-202). Since **0.12.0** (2026-10-12, HAS-222) it also holds the **device registry**, one table for every device of the house whatever its vendor: `GET /home/device/registry?kind=&room=&enabled=` and `GET /home/device/registry/{id}` answer `SmartDevice` of `smart-home-sdk` 1.8.0 (a filter takes the values of the SDK, an unknown one is a 400 without a code, an unknown id the 404 `NOT_FOUND_DEVICE`), read-only so far - the writes are HAS-223 - and **not routed by the gateway yet** (HAS-225). The Eaton configuration `amx-service` asks for with every datagram is served from that table; see the notes on `smart-home-sdk` 1.8.0. Current release **0.12.0** |
+| `database-service` | 6005 | Persistence facade for other services: Eaton device configuration and the household registry (members + their Wi-Fi devices, read by `presence-service`; HAS-150 — and, since 0.9.0, each member's role and rooms, read by the web dashboard; HAS-192 — which, since 0.10.0, asks for them through a read of its own, `GET /home/household/profiles`; HAS-211 — and, since 0.11.0, each member's permissions, what the registry grants one member beyond the role; HAS-202). Since **0.12.0** (2026-10-12, HAS-222) it also holds the **device registry**, one table for every device of the house whatever its vendor: `GET /home/device/registry?kind=&room=&enabled=` and `GET /home/device/registry/{id}` answer `SmartDevice` of `smart-home-sdk` 1.8.0 (a filter takes the values of the SDK, an unknown one is a 400 without a code, an unknown id the 404 `NOT_FOUND_DEVICE`) - **not routed by the gateway yet** (HAS-225). Since **0.13.0** (2026-10-12, HAS-223) the registry is written too: `POST /home/device/registry`, `PUT .../{id}`, `POST .../{id}/enable` and `.../disable`, `DELETE .../{id}` - see the notes on `smart-home-sdk` 1.8.0 for what a writer has to know. The Eaton configuration `amx-service` asks for with every datagram is served from that table. Current release **0.13.0** |
 | `water-service` | 6006 | Water control: every 3 minutes it reads the hot-water and the circulation temperature from a Shelly Uni, stores the reading and keeps the flag `boiler-service` polls (`GET /home/water/status/active`; on below 38 °C, off above 42). Since **0.6.0** (2026-10-10, HAS-200) `GET /home/water/status/temperature` carries `measuredAt` - the time of the row it answers, a local date-time of the house to the second; the service repeats its last row for as long as the sensor is silent, so that field is the only thing that tells a current reading from an old one - and it serves the stored temperatures, the data of the hot-water charts of the dashboard (HAS-201): `GET /home/water/temperature/history?from=&to=` answers `{from, to, bucketSeconds, points: [{at, water, circulation}]}`. The rules are the ones of the room history of `heating-service` (local date-times without an offset, `from` before `to`, start included and end not, at most 31 days, years 2000 to 9999, anything else a 400 without a code; **a bucket without a reading has no point**; **buckets are aligned to the clock of the house, not to `from`**; the two nights of the clock change), with widths of its own: **5 min up to 2 days, 30 min up to 8, 2 h beyond** (at most 576 / 384 / 372 points) - a reading is stored every 3 minutes, so one missed poll can leave a 5-minute bucket empty. Whether the circulation pump ran is not stored and not in the history. The read shares the pool of 2 with the poll and has no timeout, like the write (a month: 15 000 rows through the index on `updated_at`, 370 points in 240 ms through the gateway) - one range at a time. Current release **0.6.0** |
 | `boiler-service` | 6007 | Boiler control: drives the furnace and both pumps as relays of one Shelly Pro 4. Since 1.3.0 (2026-10-07, HAS-109) it also tells the household when that Shelly stops working — an alert once its calls have been failing for 5 minutes, a reminder every hour, an info when it works again — which makes it a publisher on the `/notification` virtual host. Current release **1.3.2** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton**: builds, starts and serves its Actuator, but has no endpoints and makes no cloud calls yet. Own repo in the org since 2026-08-13, on the target toolchain and deployed since 0.1.0 (HAS-129). Current release **0.1.1** |
@@ -847,15 +847,53 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       blinds, light or dimmer; those points are not configured, which is a quiet 404. Once
       registered, every press of a wall switch is an ERROR line. The task in which
       `amx-service` publishes `DeviceEvent` comes first.
-    - **`eaton_devices` is still there, unread** - the old version read it during the
-      rollout. The migration of HAS-223 drops it, after copying what `devices` lacks by
-      gateway and point: a configuration stored by 0.11.0 after `V13` (a rollback) exists
-      only there.
+    - **`eaton_devices` is gone** (`V14`, `database-service` 0.13.0): left in place for one
+      release, because the version before `V13` read it during the rollout, and dropped by
+      the next one after copying what `devices` lacked by gateway and point. Copy in one
+      release, drop in the next - the way to replace a table under a rolling deploy.
+  - **The registry is written since `database-service` 0.13.0** (HAS-223, deployed
+    2026-10-12). What the administration page (HAS-231) and anybody with Bruno has to know:
+    - **`PUT` replaces a device whole; there is no `PATCH`** (owner, 2026-10-12, against the
+      wording of the task). With five required fields a part of `SmartDevice` does not get
+      past `@Valid`, and a model of its own for a partial update would have had no way to
+      clear a field. A client reads the device, changes it and sends all of it back; what
+      it leaves out is gone. `enabled` is taken from the body too - the model has no default
+      for it - and `enable` / `disable` exist as the switch of a list. No SDK change.
+    - **The id, the kind and the time of registration survive a `PUT`.** A body of another
+      kind is refused: the services will keep what they know of a device under its id. The
+      room, the name, the binding and with it the vendor may change. An id in a body is
+      ignored.
+    - **400 with the code `INVALID_DEVICE`** is a device the model accepts and the registry
+      does not, `details` says why: not exactly one binding; the vendor `eaton` without the
+      Eaton binding or the other way round, a Shelly binding for another vendor than
+      `shelly`; a binding the kind is not reached through (`blinds` / `light`: shelly or
+      eaton; the four sensors: any; `weather station`: bthome; `bthome gateway`: shelly);
+      `lightKind` on anything but a light, `placement` / `positioning` on anything but
+      blinds; a name of fewer than three characters.
+    - **A Shelly of generation 2 or later needs its `deviceId`** (owner, 2026-10-12; the SDK
+      leaves it optional, for Gen1) - also `INVALID_DEVICE`. Without the id it reports under
+      over MQTT the device could be driven and never heard: its events are nobody's, with no
+      error anywhere. So a service may rely on every Gen2+ device of the registry having one
+      - as long as the rows come through the API; the schema does not say it.
+    - **409 with the code `DEVICE_CONFLICT`** is a binding that is taken - a channel of a
+      Shelly by its address or by its MQTT id, a point of an Eaton gateway, a Bluetooth
+      address - named in `details`.
+    - **A write to the registry is a write to the Eaton configuration**: moving an Eaton
+      device to another room changes the room `amx-service` reads for the next datagram of
+      its point, and removing it leaves the point unconfigured - for a room sensor, the end
+      of that room's temperature readings in `heating-service`. Nothing warns; the
+      administration page should. A point registered through either API is taken for the
+      other.
+    - **Calls for one device go one after the other**: every write stores the whole row, as
+      for the members of the household, and nothing guards against a second writer.
+    - At the deploy the registry held the 13 room sensors and nothing was written to it:
+      the writes were shown on a throwaway database, and on the cluster by two calls that
+      are refused before anything is stored. The first real device is the owner's.
     - **The schema ties a device together where the model does not**: exactly one binding,
       whole, `lightKind` only for a light, `placement` only for blinds, and four unique
       indexes (a Shelly address or device id with its channel, an Eaton gateway with its
       point, a Bluetooth address) - checks of `V13`, run by the tests on a real PostgreSQL.
-  Current latest is **1.8.0**, on `database-service` (0.12.0, 2026-10-12, HAS-222) alone; **1.6.0** is on
+  Current latest is **1.8.0**, on `database-service` (0.13.0, 2026-10-12, HAS-223) alone; **1.6.0** is on
   `heating-service` (1.9.0, 2026-10-10, HAS-199), `water-service` (0.6.0, 2026-10-10,
   HAS-200), `amx-service` (1.3.2) and `boiler-service` (1.3.1, both 2026-10-11, HAS-206); the
   others take it with their next task (`presence-service` on 1.3.0 was run against the JSON
