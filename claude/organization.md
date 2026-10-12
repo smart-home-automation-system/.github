@@ -1379,15 +1379,20 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   see the note under the library table.
 - CI/CD — GitHub Actions in every repo:
   - `CI.yml` — build + tests on push/PR.
-    **Its Discord message is being cut down to the status and the repository** (owner,
-    2026-10-11): one step instead of the two (`-> success` / `-> non-success`), with
-    `if: always()`, `status: ${{ job.status }}`, `title: "<repo-name>"`, `url` pointing at the
-    run, `nocontext: true` and `notimestamp: true` - an embed that reads `Success: <repo>`,
-    `Failure: <repo>` or `Cancelled: <repo>` (a run cancelled by a newer push used to arrive
-    as a failure). **There is no task for it: a repository is converted in the PR of the next
-    task that touches it** - check `CI.yml` in every task. Converted so far: none (all 15
-    repositories with a `CI.yml` have the old form); the look on the channel is to be checked
-    on the first one. Add a repository to this list when it is done.
+    **Its Discord message loses the commit** (owner, 2026-10-11, the form settled on
+    2026-10-12): the embed as it was - Repository, Ref, Triggered by, Workflow, the timestamp -
+    without the `Event` field, which printed the commit and its whole message. One step
+    instead of the two (`-> success` / `-> non-success`), with `if: always()`, so a run
+    cancelled by a newer push arrives as `Cancelled` and no longer as a failure; the title
+    reads `Success: CI <repo>`. The action `sarisia/actions-status-discord` shows all of the
+    context or none of it, so the step builds the message itself with `jq` and `curl` - the
+    workflow context reaches the script through `env` only, and a message Discord does not
+    take is a warning of the run, not a failure. **Copy the step from
+    `smart-home-sdk/.github/workflows/CI.yml`.** A first form, the status and the repository
+    alone, was tried there and dropped as too poor. **There is no task for it: a repository is
+    converted in the PR of the next task that touches it** - check `CI.yml` in every task.
+    Converted so far: `smart-home-sdk` (HAS-221); the other 14 repositories with a `CI.yml`
+    have the old form. Add a repository to this list when it is done.
   - `sonar.yml` — SonarCloud analysis.
   - Services: `release.yml` — release builds a Docker image pushed to Docker Hub.
   - Libraries: `package.yml` — release publishes the artifact to GitHub Packages.
