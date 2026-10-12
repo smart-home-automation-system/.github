@@ -790,8 +790,40 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   **1.5.0** (2026-10-08, HAS-211) added `HouseholdProfile` — name, role and rooms, what the
   web dashboard may know about a member — purely additive; **1.6.0** (2026-10-09, HAS-202)
   added the enum `MemberPermission` and `permissions`, a list like `rooms` and for the same
-  reasons, on `HouseholdMember` and `HouseholdProfile`;
-  current latest is **1.6.0**, on `database-service` (0.11.0, 2026-10-09, HAS-202),
+  reasons, on `HouseholdMember` and `HouseholdProfile`; **1.7.0** (2026-10-12, HAS-221) added
+  the contract of the device platform (epic HAS-218), purely additive: `SmartDevice` - a
+  device of the registry, with `DeviceKind` and one of three bindings (`ShellyBinding`,
+  `EatonBinding`, `BthomeBinding`) - `CalendarDay` with `DayType` (workday / day off), and
+  `DeviceEvent` with `EatonRxEvent`, the payload `amx-service` will publish for an Eaton
+  datagram on `/device`. No consumer has it yet; `database-service` is the first (HAS-222).
+  What the tasks that build on it have to know:
+  - **The model does not tie a device together.** The bindings and the fields of one kind
+    only (`lightKind`, `placement`, `positioning`) are all optional; which of them a device
+    must have, by its vendor and kind, is the registry's to check when it stores one.
+  - **Nothing has a default**, `enabled` is required: the registry gets separate enable /
+    disable operations, as for the members. With five required fields `SmartDevice` is not
+    the `@Valid` body of a partial update - the shape of that update is for HAS-223.
+  - **The model reads an `id` that is sent**: `readOnly` took the setter away, and the
+    generator gave the class a `@JsonCreator` constructor with the id instead. The registry
+    ignores the id of a payload it stores.
+  - **`generation` is the number a Shelly reports about itself, 1 to 4** (owner, 2026-10-12,
+    against "1 or 2" of the task): a client asks `>= 2`, never `== 2` - everything from 2 on
+    speaks the same RPC and reports over MQTT.
+  - **`deviceId` is the MQTT id, the first part of the routing key**: letters, digits, `-`
+    and `_`, in the case of the device; not every id starts with `shelly`. A relay with four
+    outputs is four devices of the registry, told apart by `channel` (0-3).
+  - **A new `DeviceKind` is not additive for a reader** - a service that reads the whole
+    registry fails on a value it does not know. The seven kinds are those of the planned
+    domains; plugs, power meters and thermometers have none yet (open, the owner's call).
+  - **`EatonRxEvent` has the same ten names as `RxEventType` of `amx-service`**, in another
+    order: map by name, never by position.
+  - Open from the review, both the owner's to decide: `BthomeBinding` has the gateway and the
+    Bluetooth address but no component id, which a gateway may be what it publishes a sensor
+    under (not verified - the gateway of the house publishes nothing about its sensors yet);
+    and `EatonBinding` names an Eaton point a second time, next to the Eaton configuration
+    `amx-service` reads - the registry table (HAS-222) has to say which of the two is asked
+    for the room of a point.
+  Current latest is **1.7.0**, on no service yet; **1.6.0** is on `database-service` (0.11.0, 2026-10-09, HAS-202),
   `heating-service` (1.9.0, 2026-10-10, HAS-199), `water-service` (0.6.0, 2026-10-10,
   HAS-200), `amx-service` (1.3.2) and `boiler-service` (1.3.1, both 2026-10-11, HAS-206); the
   others take it with their next task (`presence-service` on 1.3.0 was run against the JSON
@@ -1030,7 +1062,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.8.0**,
-  `smart-home-sdk` **1.6.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
+  `smart-home-sdk` **1.7.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
   `shelly-cloud-service` and `presence-service` — plus `api-gateway-service` are on the
