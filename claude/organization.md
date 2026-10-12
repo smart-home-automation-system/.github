@@ -490,6 +490,31 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     change, with the `source` of the change. The task had named `events/rpc` as the example;
     that key never arrives.
   - **A change of the MQTT settings of a device takes a restart of the device.**
+  - **The devices are connected** (HAS-220, 2026-10-12): every Shelly Gen2+ of the house that
+    answers - 39 of them, the heating relays and the Pro 4PM of the boiler room included - by
+    a session of the owner that manages the Shelly devices, from a prompt kept in
+    `deployment-tools/scripts/shelly` next to the device list; there is no script. What the
+    services to come have to reckon with:
+    - **About 130 messages a minute arrive in every `device.*` queue**, whatever the domain of
+      the queue: a switch repeats its whole status about once a minute, a four-channel relay
+      sends a message per channel, an energy meter and a power strip a dozen or two a minute.
+      A queue without a consumer holds some 1300 of them. Filter by the registry first.
+    - **The key names the component, and the components differ by model**: `status.switch:N`,
+      `status.light:0`, `status.rgb:0`, `status.cover:0`, `status.pm1:0`, `status.em:0`,
+      `status.presencezone:200` - next to `online`, `status.sys`, `status.mqtt`,
+      `status.cloud` and more that say nothing about the house. The table per model is in
+      `devices.md` there (the input of the decoder, HAS-227).
+    - **`source` tells who set an output**: `init` after a restart of the device, `SHC` for
+      the Shelly cloud, and so on - a restart is not a change of state.
+    - **A device reconnects now and then** (Wi-Fi) and is back within seconds; what it would
+      have published in between is lost. `online` is published on every connect.
+    - **Not everything is there**: the wall display cannot be connected - it subscribes
+      whatever its settings say, and the broker disconnects it; the Bluetooth sensors behind
+      the gateway (the weather station among them) have published nothing so far; the Gen1
+      devices stay off MQTT, which would cost them the Shelly cloud - they get action URLs
+      once the event endpoints of the services exist.
+    - **A restart for the rollout switched nothing**: a device with an output on and
+      `initial_state: off` was first set to `restore_last`. The heating relays keep `off`.
   - Two things about the broker itself, both in the README of `deployment-tools/k8s/rabbitmq`:
     the init Job cannot log in to the running broker, so definitions are imported there with
     `rabbitmqctl import_definitions`; and the owner's rule (2026-10-11) - **a backup of the
