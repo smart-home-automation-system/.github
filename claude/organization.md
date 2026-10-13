@@ -50,8 +50,9 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.15.0** (2026-10-13, HAS-231 — the
-  administration of the device registry) on top of 0.14.0 (2026-10-11, HAS-201 — the charts of the
+  reviewed and merged by the user. Current release **0.15.1** (2026-10-13, HAS-231 — the
+  administration of the device registry, 0.15.0, and the same day its two choices and every hint
+  as controls of the application instead of the browser's own) on top of 0.14.0 (2026-10-11, HAS-201 — the charts of the
   temperature histories, of the hot water and of every room, and the Overview as the house at a
   glance) on top of 0.13.1 (2026-10-09, HAS-204 — the administration of the
   household registry, 0.13.0, and the fixes of its second review the same day) on top of 0.12.0 (HAS-202 — "My room", the view of a
@@ -426,6 +427,11 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       1.8.0 took it out of the binding.
     - **The devices stand by room in the order of the house** (the `FLOORS` of the frontend);
       a room that list does not know - the kitchen, the halls - comes last, under "Other".
+    - **No control is drawn by the system** (owner, 2026-10-13, 0.15.1): the room and the kind
+      of the form were the `<select>` of the browser in 0.15.0, and the hints the `title`
+      attribute - also over the bars of the presence page, since 0.10.0. Both are Material's
+      now, themed like the rest. A rule for every view to come, in the `CLAUDE.md` of the
+      repository; nothing changed for the backend.
     At the deploy the page was opened read-only on the live address as the administrator: the
     13 devices of the registry - the room sensors of the gateway `blinds` - each had a row
     that agreed with the API (room, name, kind, vendor, gateway and point), no failure was
