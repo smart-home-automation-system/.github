@@ -33,7 +33,7 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 | `cholewa-commons` | Common utilities | ai, amx, api-gateway, boiler, database, heating, notification, presence, shelly-cloud, water |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
 | `smart-home-sdk` | Shared domain / API models | amx, boiler, database, heating, presence, shelly-cloud, water |
-| `shelly-client` | Models of what a Shelly device answers and publishes (no HTTP client class, despite the name) | boiler, heating, shelly-cloud, water |
+| `shelly-client` | Everything a service talks to a Shelly with: the models of what a device answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the decoder of what the Gen2+ devices publish over MQTT | boiler, heating, shelly-cloud, water |
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
 `magikabdul` GitHub account (not the org): they are also used by services outside this
@@ -957,8 +957,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   (HAS-129), which leaves no consumer on the old client (0.0.x).
   **1.1.0** (2026-10-13, HAS-226) is its first feature release since, purely additive: the
   models the device platform (epic HAS-218) reads a Shelly with. No consumer has it yet - the
-  four are on 1.0.0 and take it with their next task; the decoder of the device events
-  (HAS-227) is the first to build on it. What the tasks that build on it have to know:
+  four are on 1.0.0 and take it with their next task; the clients and the decoder of 2.0.0
+  (HAS-227, below) were the first to build on it. What the tasks that build on it have to know:
   - **Three groups of models**: the Gen1 `GET /status` (`Gen1DeviceStatus` with `rollers`,
     `lights`, `relays`; `RollerStatus`, `Gen1LightStatus`, `MotionStatus`), the status of one
     Gen2+ component - **the body of the MQTT topic `<id>/status/<component>:<n>`** and the
@@ -996,6 +996,52 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     scope only; the jar still ships annotations and no databind. And one trap of its build:
     the folder of the generated models is emptied by `mvn clean` alone, so a renamed schema
     leaves its old class in the jar unless the build is a clean one.
+  **2.0.0** (2026-10-13, HAS-227) made it more than models: the reactive clients and the MQTT
+  decoder the three device services and `heating-service` would each have written. Nothing of
+  1.1.0 was removed or changed; it is a major because of what a service gets by taking it. No
+  consumer has it yet - the four are on 1.0.0 and take it with their next task, keeping their
+  own clients; the first to build on it are the device services of the epic HAS-218. What they
+  and a reviewer have to know:
+  - **Three beans come with the library, registered by itself**: `ShellyRpcClient` (Gen2+,
+    `POST /rpc/<Method>`), `ShellyGen1Client` (`GET /roller`, `/light`, `/color`, `/relay`,
+    `/status`) and `ShellyMqttDecoder`. The clients take a WebFlux application with one
+    `WebClient.Builder` to inject, the decoder one `JsonMapper` - **which every WebFlux service
+    of the organization has, so every one of them gets all three by bumping the version**,
+    used or not. They call nobody by themselves; `shelly.client.enabled: false` keeps them
+    out. A bean of the same type of the service wins.
+  - **Spring WebFlux, Reactor Netty and Jackson 3 are `provided`**: the library hands on
+    nothing but what the models need. It is built against the BOM of Spring Boot (4.1.1),
+    imported, not a parent - and follows the Boot rule of the organization with its next task.
+  - **A client is called with the address of the device as the registry holds it** - a host
+    or `host:port` - and the channel. Anything else is refused before a call
+    (`ShellyAddressException`) and not repeated in the message.
+  - **A call ends with the answer or with a `ShellyCallException`**: not reached, not in time
+    (`shelly.client.connect-timeout` 3 s, `response-timeout` 5 s; a bare number is seconds,
+    one second to a minute, the start fails outside), refused (`ShellyRpcException` with the
+    code of the device), or a 2xx that is not the model - the rule of `boiler-service`, now
+    in one place. The message is for a log; a service maps it to an error of its own.
+  - **A Gen2+ command answers nothing** (`Mono<Void>`), a Gen1 command the status right after
+    it. What happened to a cover is learned from its status - over MQTT, or by a read.
+  - **Nothing is retried, and every call opens its own connection**: a device closes an idle
+    connection after seconds, so there is no pool to go stale.
+  - **The request log of a service does not reach these calls by itself**: the clients put
+    their own connector on the builder, where the timeouts live. A bean of
+    `ShellyHttpClientCustomizer` with the Logbook handler does it - one bean per service, the
+    snippet is in the README of the library. The trace comes along through the builder.
+  - **The decoder reads a routing key and a body**: `ShellyTopic.parse(key)` gives the device
+    id without the body - **ask the registry first**, most of the 130 messages a minute are
+    nobody's - and `decode` answers a `ShellyEvent`: `Online`, `Status` with the model of the
+    component (the whole component, not a change), or nothing for a component without a model
+    (`sys`, `wifi`, the meters), whose body it does not read. A body that is not what its
+    topic carries is a `ShellyDecodeException`, **thrown** - catch it inside the chain of the
+    listener, or the message is handed back and delivered again at once.
+  - **Two things the devices showed**: an RGBW PM in the profile `rgb` - the ones of the house
+    - knows `RGB.*` and answers 404 to `RGBW.*`, so the client has both; and
+    `Webhook.ListSupported` is refused by the Dimmer Gen3 itself (the answer is bigger than it
+    can send).
+  - **No command was ever sent to a device of the house**: both clients were run against real
+    devices for their reads, the commands against a stub alone. The first real `Cover.Open` is
+    the first service's - check it on one device before a schedule drives twenty.
   The first **service** migrated is `notification-service` — Java 21 / Spring Boot 4.1.0,
   released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
   `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
@@ -1192,7 +1238,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.8.0**,
-  `smart-home-sdk` **1.8.0**, `shelly-client` **1.1.0**, `cholewa-security` still **1.0.0**),
+  `smart-home-sdk` **1.8.0**, `shelly-client` **2.0.0**, `cholewa-security` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
   `shelly-cloud-service` and `presence-service` — plus `api-gateway-service` are on the
