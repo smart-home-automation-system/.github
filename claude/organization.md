@@ -50,7 +50,8 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
 - `web-application` — the dashboard: Angular 22 + Angular Material frontend (desktop-first,
   responsive; on the household's iPhones the same application installed as a PWA, no native
   app). Claude has full autonomy here, but every change goes through a feature branch and a PR
-  reviewed and merged by the user. Current release **0.14.0** (2026-10-11, HAS-201 — the charts of the
+  reviewed and merged by the user. Current release **0.15.0** (2026-10-13, HAS-231 — the
+  administration of the device registry) on top of 0.14.0 (2026-10-11, HAS-201 — the charts of the
   temperature histories, of the hot water and of every room, and the Overview as the house at a
   glance) on top of 0.13.1 (2026-10-09, HAS-204 — the administration of the
   household registry, 0.13.0, and the fixes of its second review the same day) on top of 0.12.0 (HAS-202 — "My room", the view of a
@@ -383,6 +384,54 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     line** - the tiles of the overview are of one height, and on the hot-water page the tank and
     the two cards next to it are; and the tank and the circulation have **a card each**,
     although one call feeds both.
+    Since **0.15.0** (HAS-231, 2026-10-13) there is `/devices`, the administrator's: the
+    administration of the device registry - every device by room, with its kind, its vendor
+    and the way it is reached, and the forms to register one, change one, take one out of use
+    and remove one. **The second page that writes to `database-service`.** What the backend
+    side should know:
+    - **It needs `database-service` 0.13.0 and `api-gateway-service` 0.5.0 or later**: it
+      reads `GET /home/device/registry` every 60 s while it is open and after every change,
+      and writes with `POST`, `PUT /{id}`, `POST /{id}/enable` / `disable` and `DELETE /{id}`.
+      No other view asks for the registry.
+    - **A change is one call, one at a time**, and its answer is not used: the registry is
+      read again. A form nothing was changed in makes no call.
+    - **A `PUT` carries the whole device, and what the page does not know of it**: a field a
+      later `smart-home-sdk` adds to `SmartDevice` or to the binding a device keeps is sent
+      back as it was read. So a new field of the model is not erased by an edit from an older
+      dashboard - but it cannot be set there either.
+    - **The form cannot produce what the registry refuses as `INVALID_DEVICE`**: the kind
+      decides which bindings are offered, the binding the vendor (a choice only for a
+      Bluetooth sensor: Shelly or other), a Shelly of generation 2+ needs its device id, and
+      the kind of a registered device is not editable. It is a copy of `DeviceRules`
+      (`features/devices/device-rules.ts`): **a rule added to the registry is added there**,
+      or the page offers what the registry turns down.
+    - **It branches on the three device codes** of `CustomErrorDescription`
+      (`NOT_FOUND_DEVICE`, `INVALID_DEVICE`, `DEVICE_CONFLICT`) to word a refusal in English
+      and Polish - a caller of that wire contract; a new code needs a text in the dashboard.
+      Which binding is taken it has checked itself before sending, against the four unique
+      indexes.
+    - **The offered rooms, kinds, light kinds, placements, vendors and gateways are copies of
+      the SDK's enums** (`data-access/household/registry-values.ts`): a new `DeviceKind` is
+      offered only after it is added there; a value the page does not know is still shown and
+      sent back.
+    - **"Used by the services" is the field `enabled`, not a switch of the device** (owner,
+      2026-10-13): the button and the badge say so in words, and its icon is not a switch.
+      Nothing is sent to a device from this page. No service reads the field yet; the day one
+      does, taking a device out of use here stops it for that service.
+    - **It warns about an Eaton device**: the form of one says that another room, gateway or
+      point takes effect with the next datagram, and the question before removing one that
+      the readings of its point stop - for a room sensor the temperature of the room in the
+      heating. The warning this page was asked for when the registry became writable.
+    - **A Bluetooth sensor has no gateway to pick** - the task named one, `smart-home-sdk`
+      1.8.0 took it out of the binding.
+    - **The devices stand by room in the order of the house** (the `FLOORS` of the frontend);
+      a room that list does not know - the kitchen, the halls - comes last, under "Other".
+    At the deploy the page was opened read-only on the live address as the administrator: the
+    13 devices of the registry - the room sensors of the gateway `blinds` - each had a row
+    that agreed with the API (room, name, kind, vendor, gateway and point), no failure was
+    shown, and the page made no request other than `GET`. **No write was made to the
+    production registry** - adding, changing and removing were shown on the mock API only;
+    the first real device is the owner's.
     Two things HAS-204 left for the frontend at large: Angular Material's calendar and
     paginator are provided by the view that has one, never by the application configuration
     (the calendar there had put 258 kB into the first download), and the initial bundle is now
@@ -871,7 +920,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
       the next one after copying what `devices` lacked by gateway and point. Copy in one
       release, drop in the next - the way to replace a table under a rolling deploy.
   - **The registry is written since `database-service` 0.13.0** (HAS-223, deployed
-    2026-10-12). What the administration page (HAS-231) and anybody with Bruno has to know:
+    2026-10-12). What the administration page (HAS-231, `web-application` 0.15.0) and anybody with Bruno has to know:
     - **`PUT` replaces a device whole; there is no `PATCH`** (owner, 2026-10-12, against the
       wording of the task). With five required fields a part of `SmartDevice` does not get
       past `@Valid`, and a model of its own for a partial update would have had no way to
