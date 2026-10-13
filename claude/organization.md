@@ -33,7 +33,7 @@ Do not confuse `api-gateway-service` (HTTP edge / Spring Cloud Gateway) with
 | `cholewa-commons` | Common utilities | ai, amx, api-gateway, boiler, database, heating, notification, presence, shelly-cloud, water |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` |
 | `smart-home-sdk` | Shared domain / API models | amx, boiler, database, heating, presence, shelly-cloud, water |
-| `shelly-client` | REST client for Shelly devices | boiler, heating, shelly-cloud, water |
+| `shelly-client` | Models of what a Shelly device answers and publishes (no HTTP client class, despite the name) | boiler, heating, shelly-cloud, water |
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
 `magikabdul` GitHub account (not the org): they are also used by services outside this
@@ -955,6 +955,47 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   consumer on 1.0.0 (adopted during HAS-127), `heating-service` the second (HAS-123) and
   `boiler-service` the third (HAS-128) and `shelly-cloud-service` the fourth and last
   (HAS-129), which leaves no consumer on the old client (0.0.x).
+  **1.1.0** (2026-10-13, HAS-226) is its first feature release since, purely additive: the
+  models the device platform (epic HAS-218) reads a Shelly with. No consumer has it yet - the
+  four are on 1.0.0 and take it with their next task; the decoder of the device events
+  (HAS-227) is the first to build on it. What the tasks that build on it have to know:
+  - **Three groups of models**: the Gen1 `GET /status` (`Gen1DeviceStatus` with `rollers`,
+    `lights`, `relays`; `RollerStatus`, `Gen1LightStatus`, `MotionStatus`), the status of one
+    Gen2+ component - **the body of the MQTT topic `<id>/status/<component>:<n>`** and the
+    answer of `<Component>.GetStatus` (`SwitchStatus`, `CoverStatus`, `Gen2LightStatus`,
+    `RgbwStatus` for `rgb` and `rgbw`, `PresenceStatus` for `presencezone`,
+    `IlluminanceStatus`, `TemperatureStatus`, `HumidityStatus`, `DevicePowerStatus`, the three
+    `Bthome*`), and the frames of the RPC channel (`NotifyStatus`, `NotifyFullStatus`,
+    `NotifyEvent`, `RpcError`).
+  - **The three notifications do not arrive in this house**: they are published on
+    `<id>/events/rpc` only by a device with `enable_rpc` on, and every device here has it off
+    (HAS-219). A consumer of the `device.*` queues reads the component statuses.
+  - **States are text, not enums** (`state`, `source`, `last_direction`, `illumination`): an
+    enum would fail the decoding of a whole message on a word a firmware adds. The known
+    values are in the descriptions of `swagger/shelly.yaml`; handle the ones you know and
+    have an answer for the rest.
+  - **Nothing has a default: what a device did not send is `null`**, never off or zero -
+    `target_pos` of a cover at rest, `brightness` of an RGBW2 in the mode color (its level is
+    `gain` there), the measurements of a relay without a meter. A list or a map is the
+    exception: decoded it is empty, **built with the builder it is `null`** - a stub of a test
+    sets every list the code reads.
+  - **A model is a part of the payload**: a device sends more than a model has. The models
+    rely on a reader that ignores unknown properties, the default of Jackson 3 and of Boot.
+  - **`SwitchStatus` is the switch for new code.** `ShellyPro4StatusResponse`, which
+    `boiler-service` and `heating-service` read, has power, voltage and current as integers:
+    `231.2` reads `231`, without a word. It was left as it is.
+  - **`current_pos` is 0 closed to 100 open on both generations**, and means something only
+    while the roller knows its position (`positioning` on Gen1, `pos_control` on Gen2+).
+  - **The Bluetooth models are unverified**: no gateway of the house has a BTHome component
+    paired, so the three `Bthome*` classes follow the documentation of Shelly. Check them
+    against the first sensor that reports. `PresenceStatus` was read on a Presence Gen4
+    (firmware 2.0.1): `id`, `value`, `num_objects`.
+  - **The names carry the generation where one word meant two models** (owner, 2026-10-13):
+    `Gen1LightStatus` and `Gen2LightStatus`, not `LightStatus` / `LightStatus2` of the task.
+  - The library got its first tests - sample payloads decoded with Jackson 3, in the test
+    scope only; the jar still ships annotations and no databind. And one trap of its build:
+    the folder of the generated models is emptied by `mvn clean` alone, so a renamed schema
+    leaves its old class in the jar unless the build is a clean one.
   The first **service** migrated is `notification-service` — Java 21 / Spring Boot 4.1.0,
   released **0.1.0** (2026-07-24, HAS-124). It does not use `smart-home-sdk` or
   `shelly-client`; during the migration it adopted `cholewa-commons` 1.1.0 (a new consumer
@@ -1151,7 +1192,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
   All four libraries are already migrated (`cholewa-commons` and `cholewa-security` on the
   target versions, `smart-home-sdk` and `shelly-client` on Java 21 without a Spring Boot
   parent; all first released as 1.0.0 — current latest: `cholewa-commons` **1.8.0**,
-  `smart-home-sdk` **1.8.0**, `cholewa-security` and `shelly-client` still **1.0.0**),
+  `smart-home-sdk` **1.8.0**, `shelly-client` **1.1.0**, `cholewa-security` still **1.0.0**),
   and **all nine services** — `notification-service`, `ai-service`, `database-service`,
   `water-service`, `heating-service`, `boiler-service`, `amx-service`,
   `shelly-cloud-service` and `presence-service` — plus `api-gateway-service` are on the
@@ -1512,7 +1553,7 @@ project. Their packages come from `maven.pkg.github.com/magikabdul/*` (pom serve
     `smart-home-sdk/.github/workflows/CI.yml`.** A first form, the status and the repository
     alone, was tried there and dropped as too poor. **There is no task for it: a repository is
     converted in the PR of the next task that touches it** - check `CI.yml` in every task.
-    Converted so far: `smart-home-sdk` (HAS-221), `database-service` (HAS-222) and `api-gateway-service` (HAS-225); the other 12 repositories with a `CI.yml`
+    Converted so far: `smart-home-sdk` (HAS-221), `database-service` (HAS-222), `api-gateway-service` (HAS-225) and `shelly-client` (HAS-226); the other 11 repositories with a `CI.yml`
     have the old form. Add a repository to this list when it is done.
   - `sonar.yml` — SonarCloud analysis.
   - Services: `release.yml` — release builds a Docker image pushed to Docker Hub.
