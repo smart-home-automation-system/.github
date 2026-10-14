@@ -23,7 +23,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | Repository | Local port | Purpose | Release |
 |---|---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic) | **0.5.0** (2026-10-13, HAS-225) |
-| `amx-service` | 6001 | Bridge to the AMX control system: receives Eaton datagrams from the NetLinx masters and publishes the readings; since 1.4.0 (HAS-228) it also **sends** Eaton frames (blinds, lights, levels) to the TCP frame server of the Boiler master (port 20010, the NetLinx side is HAS-230) | **1.4.0** (2026-10-14) |
+| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; `POST /home/amx` is gone since 2.0.0 (HAS-286) | **2.0.0** (2026-10-14, HAS-286) |
 | `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard | **1.9.2** |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
@@ -213,11 +213,18 @@ monitoring through the household notifications.
   the next datagram of its point — removing a room sensor ends that room's temperature
   readings. A switched-off device is still found by its point; `enabled` is read by no service
   yet. Calls for one device go one after the other.
-- **Eaton through `amx-service`**: the datagram of a configured blinds, light or dimmer is still
-  a 500 — **no Eaton blinds or light goes into the registry before HAS-229** (`amx-service`
-  publishes `DeviceEvent` instead). The writes of 1.4.0 never send a frame twice (only the
-  connect is repeated): a 504 or a lost connection means "may have been carried out". Until
-  HAS-230 is on the Boiler master nothing listens on 20010.
+- **Eaton through `amx-service`**: **the socket to the frame server of the Television master
+  is the only way between the AMX and the backend** (HAS-230 / HAS-286, since 2026-10-14):
+  every frame of both gateways arrives as a line `<blinds|lights>;<hex>`, commands go back the
+  same way, the HTTP `POST /home/amx` path is retired. The line protocol is pinned in
+  `amx/CLAUDE.md`; a change there is a change in `amx-service`. A frame of a configured blinds,
+  light or dimmer is dropped with a WARN — **no Eaton blinds or light goes into the registry
+  before HAS-229** (`amx-service` publishes `DeviceEvent` instead). The writes never send a
+  frame twice: a 504 or a lost connection means "may have been carried out"; `OK` of the frame
+  server says the gateway got the bytes, the gateway's own `C3` status says whether the
+  telegram went out (an error status is a WARN in `amx-service`, the caller already has its
+  202). The health of `amx-service` shows the socket as `frameServer`, outside the probes: a
+  master that is off does not take the pod out of the Service.
 - **The calendar of the house** (`database-service` 0.14.0): read `type`, never `reason`; only
   the household's days off are stored, the Polish statutory holidays are computed (a holiday a
   later law adds needs a release); a holiday or a weekend cannot be made a workday.
@@ -241,7 +248,8 @@ monitoring through the household notifications.
   allowlist; `/device` is listed by branch (`configuration`, `registry`), so a third branch
   needs a gateway change. A pattern ending in `/**` matches the bare path. The full `GET
   /home/household` stays routed (owner, 2026-10-08) — do not re-raise. `/amx/**` routes the
-  writes of `amx-service`.
+  writes of `amx-service` — the only thing it answers over HTTP since 2.0.0 (the README of
+  `api-gateway-service` still lists `POST /home/amx`; to correct with its next task).
 - **A broken connection to a service is a 502 with a body, and a `GET` without a body is
   repeated once** when it broke within 1 s (gateway 0.4.0, HAS-212; logged at WARN). The pool
   closes a connection idle for 2 min or older than 30 min (conntrack forgets an idle connection
