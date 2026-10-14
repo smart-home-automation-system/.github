@@ -388,12 +388,17 @@ monitoring through the household notifications.
   or modify code there unless explicitly asked. Default contributions: analysis, code
   review, security review, answering questions.
 - **`web-application`**: full autonomy — Claude designs and implements the frontend.
-- **`amx`**: NetLinx language; analysis and suggestions, ask before modifying.
+- **`amx`**: NetLinx language; analysis and suggestions, ask before modifying. The owner
+  writes the NetLinx code and transfers it to the masters.
 - Never commit or push unless explicitly asked.
-- **All changes to Spring services, libraries and `web-application` go through pull
-  requests** — no direct commits to `main`. Branch naming: **`feature/HAS-<n>`**, where
-  `<n>` is the Jira task number (HAS project). When no Jira task covers the change,
-  create one first (`jira-backlog`) or confirm with the user how to proceed.
+- **All changes to Spring services, libraries, `web-application` and the NetLinx code of
+  `amx` go through pull requests** — no direct commits to `main`. Branch naming:
+  **`feature/HAS-<n>`**, where `<n>` is the Jira task number (HAS project). When no Jira
+  task covers the change, create one first (`jira-backlog`) or confirm with the user how to
+  proceed.
+  - **`amx` (owner, 2026-10-14): `/code-review` alone** before a PR is called ready
+    (`service-review` is written for Spring). Documentation-only changes (`README.md`,
+    `CLAUDE.md`) may go straight to `main`.
   - **No merge without both reviews.** Before a PR of a service or library is called ready
     for merge, Claude runs **`service-review` and `/code-review`** on its diff, shows the
     results and records the outcome on the PR. Until both are done: no merge, so no release
