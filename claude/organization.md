@@ -32,7 +32,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.3.2** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton** (Actuator only, no endpoints) | **0.1.1** |
 | `presence-service` | 6009 | Household presence: UniFi clients matched against the household registry every minute, status changes stored, four routed reports, nightly retention (`P365D`). State in the memory of one instance: `Recreate`, never scaled | **0.6.0** |
-| `blinds-service` | 6011 | Roller shutters (epic HAS-242): Eaton blinds through `amx-service`, Shelly blinds, the real state, weather-aware schedules. A **skeleton** since HAS-243: consumes `device.prod.blinds` on `/device`, has the notification publisher and the clients of database, weather and amx, acts on nothing yet, no endpoints. Own database, `Recreate`, never scaled | **0.1.0** (2026-10-15, HAS-243) |
+| `blinds-service` | 6011 | Roller shutters (epic HAS-242): Eaton blinds through `amx-service`, Shelly blinds, the real state, weather-aware schedules. Knows the blinds from the device registry (every 5 min) and moves them on command through three drivers - Shelly Gen1 roller, Shelly Gen2 cover, Eaton through `amx-service` (HAS-244); `POST /home/blinds/{id}`, `/{id}/position`, `/rooms/{room}`, not routed yet (HAS-251). Consumes `device.prod.blinds` on `/device` (acts on no event yet). Own database, `Recreate`, never scaled | **0.2.0** (2026-10-15, HAS-244) |
 
 Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardware bridge).
 
