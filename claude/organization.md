@@ -23,11 +23,11 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | Repository | Local port | Purpose | Release |
 |---|---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic) | **0.5.0** (2026-10-13, HAS-225) |
-| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light or dimmer reports as `DeviceEvent` to `/device` (HAS-229); `POST /home/amx` is gone since 2.0.0 (HAS-286) | **2.1.0** (2026-10-15, HAS-229) |
+| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light, dimmer, push button or PIR sensor reports as `DeviceEvent` to `/device` (HAS-229, HAS-288); `POST /home/amx` is gone since 2.0.0 (HAS-286) | **2.2.0** (2026-10-15, HAS-288) |
 | `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard | **1.9.2** |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
-| `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off) | **0.14.0** (2026-10-13, HAS-224) |
+| `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off) | **0.15.0** (2026-10-15, HAS-288) |
 | `water-service` | 6006 | Hot water: reads a Shelly Uni every 3 min, keeps the flag `boiler-service` polls (on below 38 °C, off above 42), serves the dated reading and the stored history | **0.6.0** |
 | `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.3.2** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton** (Actuator only, no endpoints) | **0.1.1** |
@@ -41,12 +41,12 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 |---|---|---|---|
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher` | ai, amx, api-gateway, boiler, database, heating, notification, presence, shelly-cloud, water | **1.8.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
-| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, boiler, database, heating, presence, shelly-cloud, water | **1.8.0** |
+| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, boiler, database, heating, presence, shelly-cloud, water | **1.9.0** |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | boiler, heating, shelly-cloud, water (all still on 1.0.0) | **2.0.0** |
 
 Versions in the services (2026-10-14): `cholewa-commons` 1.8.0 on amx, api-gateway, boiler,
 database, heating, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.8.0 on amx and database; 1.6.0 on boiler, heating, water; 1.3.0 on presence
+`smart-home-sdk` 1.9.0 on amx and database; 1.6.0 on boiler, heating, water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -85,7 +85,7 @@ every consumer:
   account (`magikabdul/amx-tenczynek`); the workspace directory is named `amx`. The masters
   and their addresses are in `src/systemCholewaTenczynek.apw`.
 - `web-application` — the dashboard: Angular 22 + Angular Material, desktop-first, installed as
-  a PWA on the household's iPhones. Current release **0.15.1** (2026-10-13, HAS-231 — the
+  a PWA on the household's iPhones. Current release **0.16.0** (2026-10-15, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
   administration of the device registry). Its plan: epics HAS-184 (foundation), HAS-185
   (heating / hot water / boiler room), HAS-186 (room view on the phone), HAS-187 (presence and
   household administration); frontend tasks carry the label `frontend`. Everything about it is
@@ -222,7 +222,7 @@ monitoring through the household notifications.
   `amx/CLAUDE.md`; a change there is a change in `amx-service`. A frame of a registered
   blinds, light or dimmer is published as a `DeviceEvent` (`amx-service` ≥ 2.1.0, HAS-229) to
   `amq.topic` in `/device`, routing key `eaton.<gateway>.<point>` — every `device.*` queue gets
-  it; push buttons and PIR sensors not yet (HAS-288). The writes never send a
+  it, and so are the push buttons and PIR sensors (HAS-288, `amx-service` 2.2.0 / `database-service` 0.15.0 / SDK 1.9.0). The Eaton devices of the house, what each gateway hears and what it does not, are listed in `deployment-tools/scripts/eaton/devices.md`. The writes never send a
   frame twice: a 504 or a lost connection means "may have been carried out"; `OK` of the frame
   server says the gateway got the bytes, the gateway's own `C3` status says whether the
   telegram went out (an error status is a WARN in `amx-service`, the caller already has its
