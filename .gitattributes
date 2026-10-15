@@ -1,0 +1,2 @@
+# shell scripts run under bash: a CR at the end of a line breaks them
+*.sh text eol=lf

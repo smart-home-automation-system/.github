@@ -149,13 +149,33 @@ It must download `cholewa-commons` and `smart-home-sdk` without a 401.
 
 ### 4a. Shared secrets for skills (`<workspace>/.env`)
 
-Some skills (e.g. `jira-backlog`) read credentials from a `.env` file in the workspace
-root — deliberately outside every git repository. Create it with:
+Some skills (`jira-backlog`, `jira-sprint`, `quality-gate`) need credentials. They live in
+a `.env` file in the workspace root — deliberately outside every git repository:
 
 ```
 JIRA_EMAIL=<atlassian account email>
 JIRA_API_TOKEN=<token from id.atlassian.com -> Security -> API tokens>
 ```
+
+Claude never reads or sources that file itself (the auto-mode classifier refuses it, and
+rightly so): it calls a script that loads the file and passes the credentials to `curl`
+without printing them — `claude/scripts/jira-api.sh` of this repository. It lives here and
+not in the plugin on purpose: an installed plugin runs from a cache directory named after
+its version, so an allow rule pointing into it would break with every update; this clone
+sits at the same place in every workspace.
+
+Allow exactly that script in `<workspace>/.claude/settings.local.json` (or through
+`/permissions` → Allow → Project settings (local)):
+
+```json
+{ "permissions": { "allow": ["Bash(bash organization-repository/claude/scripts/jira-api.sh:*)"] } }
+```
+
+The skills call it from the workspace root:
+`bash organization-repository/claude/scripts/jira-api.sh <path below /rest/> [curl args]`.
+The same pattern serves the RabbitMQ management API (`RABBITMQ_USERNAME` /
+`RABBITMQ_PASSWORD`, its own allow rule); its script and host are private details and live
+in `deployment-tools` (`scripts/rabbitmq-api.sh`).
 
 ### 5. Skills
 
