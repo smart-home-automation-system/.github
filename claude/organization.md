@@ -115,8 +115,9 @@ every consumer:
   - **It writes to the house in three places only**: the heating switch (`POST
     /home/heating?turn=on|off`, after a question, never automated — browser tests run on a mock
     API; `npm start` talks to the real gateway) and the two registries of `database-service`.
-    **No write was ever made to the production registries by Claude** — the first real change
-    is the owner's.
+    **Claude writes to the production registries only device by device, after the owner accepts
+    each one** (the Eaton inventory of 2026-10-15 through the API, not the dashboard) — never
+    from a test, never in bulk.
   - Endpoints it needs: `heating-service` ≥ 1.9.0, `water-service` ≥ 0.6.0, `database-service`
     ≥ 0.13.0, gateway ≥ 0.5.0; against an older one a card shows the 404 and the rest works.
   - The Definition of Done is the one of a service fitted to the frontend: `/code-review` and
