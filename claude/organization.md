@@ -32,6 +32,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.3.2** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton** (Actuator only, no endpoints) | **0.1.1** |
 | `presence-service` | 6009 | Household presence: UniFi clients matched against the household registry every minute, status changes stored, four routed reports, nightly retention (`P365D`). State in the memory of one instance: `Recreate`, never scaled | **0.6.0** |
+| `blinds-service` | 6011 | Roller shutters (epic HAS-242): Eaton blinds through `amx-service`, Shelly blinds, the real state, weather-aware schedules. A **skeleton** since HAS-243: consumes `device.prod.blinds` on `/device`, has the notification publisher and the clients of database, weather and amx, acts on nothing yet, no endpoints. Own database, `Recreate`, never scaled | **0.1.0** (2026-10-15, HAS-243) |
 
 Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardware bridge).
 
@@ -39,14 +40,14 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 
 | Library | Purpose | Current consumers | Latest |
 |---|---|---|---|
-| `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher` | ai, amx, api-gateway, boiler, database, heating, notification, presence, shelly-cloud, water | **1.8.0** |
+| `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher` | ai, amx, api-gateway, blinds, boiler, database, heating, notification, presence, shelly-cloud, water | **1.8.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
-| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, boiler, database, heating, presence, shelly-cloud, water | **1.9.0** |
-| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | boiler, heating, shelly-cloud, water (all still on 1.0.0) | **2.0.0** |
+| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, presence, shelly-cloud, water | **1.9.0** |
+| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | blinds (2.0.0); boiler, heating, shelly-cloud, water (still on 1.0.0) | **2.0.0** |
 
-Versions in the services (2026-10-14): `cholewa-commons` 1.8.0 on amx, api-gateway, boiler,
-database, heating, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.9.0 on amx and database; 1.6.0 on boiler, heating, water; 1.3.0 on presence
+Versions in the services (2026-10-15): `cholewa-commons` 1.8.0 on amx, api-gateway, blinds,
+boiler, database, heating, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
+`smart-home-sdk` 1.9.0 on amx, blinds and database; 1.6.0 on boiler, heating, water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -267,10 +268,14 @@ monitoring through the household notifications.
 
 - One managed PostgreSQL with **22 usable connections for the whole cluster** (25 minus 3
   reserved), not for this project alone. Split: **heating 2 / database 4 / water 2 /
-  presence 2 — 10 allotted, 12 free** for Flyway, tools and services to come. It is sized for
+  presence 2 / blinds 2 — 12 allotted, 10 free** for Flyway, tools and services to come. It is sized for
   RollingUpdate (the old and the new pod each hold a pool, Flyway adds one): deploy services with
   a database one at a time; raising a pool means redoing the sum; each service pins its size
   with a test.
+- **Every database belongs to `doadmin`, not to the user of the services** — PostgreSQL 15+
+  gives `CREATE` on `public` to the owner only, so a new database needs `GRANT USAGE, CREATE ON
+  SCHEMA public TO <user>` (as `doadmin`, in that database) before the first start, or Flyway
+  fails with `permission denied for schema public` (HAS-243).
 - The pool comes from `cholewa-commons` (`database.*`); it validates on acquire (bound 2 s, keep
   it well below `max-acquire-time`), caps the life at 30 min and recovers gradually. Drop
   `@EnableR2dbcRepositories` when adopting it (a `@WebFluxTest` slice would build repositories).
@@ -390,8 +395,8 @@ monitoring through the household notifications.
   message of `CI.yml` carries no commit** (owner, 2026-10-12): one step with `if: always()`,
   built with `jq` and `curl` — copy it from `smart-home-sdk/.github/workflows/CI.yml`. No task of
   its own: convert a repository in the PR of its next task. Converted: `smart-home-sdk`,
-  `database-service`, `api-gateway-service`, `shelly-client`, `amx-service`; 10 repositories
-  still have the old form.
+  `database-service`, `api-gateway-service`, `shelly-client`, `amx-service`, `blinds-service`
+  (new); 10 repositories still have the old form.
 
 ## Working rules for Claude
 
