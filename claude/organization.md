@@ -23,7 +23,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | Repository | Local port | Purpose | Release |
 |---|---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic) | **0.5.0** (2026-10-13, HAS-225) |
-| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; `POST /home/amx` is gone since 2.0.0 (HAS-286) | **2.0.0** (2026-10-14, HAS-286) |
+| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light or dimmer reports as `DeviceEvent` to `/device` (HAS-229); `POST /home/amx` is gone since 2.0.0 (HAS-286) | **2.1.0** (2026-10-15, HAS-229) |
 | `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard | **1.9.2** |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
@@ -151,7 +151,8 @@ every consumer:
     publisher that cares repeats. Publishers: `heating-service` (silent sensors) and
     `boiler-service` (the boiler Shelly). `GET /home/notification/skippy?message=&level=`
     through a port-forward is the smoke test.
-  - `/device` (users `shelly` for the devices, `device` for the services) — MQTT, below.
+  - `/device` (users `shelly` for the devices, `device` for the services) — MQTT, below;
+    `amx-service` publishes the Eaton `DeviceEvent` there over AMQP (connection `<pod>/device`).
 - **A RabbitMQ connection is named after its pod** (`cholewa-commons` ≥ 1.8.0, by itself;
   outside Kubernetes `<service>-local`); a second connection adds its purpose
   (`<pod>/notification`). A new service on the broker declares nothing for it.
@@ -217,9 +218,10 @@ monitoring through the household notifications.
   is the only way between the AMX and the backend** (HAS-230 / HAS-286, since 2026-10-14):
   every frame of both gateways arrives as a line `<blinds|lights>;<hex>`, commands go back the
   same way, the HTTP `POST /home/amx` path is retired. The line protocol is pinned in
-  `amx/CLAUDE.md`; a change there is a change in `amx-service`. A frame of a configured blinds,
-  light or dimmer is dropped with a WARN — **no Eaton blinds or light goes into the registry
-  before HAS-229** (`amx-service` publishes `DeviceEvent` instead). The writes never send a
+  `amx/CLAUDE.md`; a change there is a change in `amx-service`. A frame of a registered
+  blinds, light or dimmer is published as a `DeviceEvent` (`amx-service` ≥ 2.1.0, HAS-229) to
+  `amq.topic` in `/device`, routing key `eaton.<gateway>.<point>` — every `device.*` queue gets
+  it; push buttons and PIR sensors not yet (HAS-288). The writes never send a
   frame twice: a 504 or a lost connection means "may have been carried out"; `OK` of the frame
   server says the gateway got the bytes, the gateway's own `C3` status says whether the
   telegram went out (an error status is a WARN in `amx-service`, the caller already has its
