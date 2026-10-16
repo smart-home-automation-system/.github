@@ -89,7 +89,7 @@ every consumer:
   account (`magikabdul/amx-tenczynek`); the workspace directory is named `amx`. The masters
   and their addresses are in `src/systemCholewaTenczynek.apw`.
 - `web-application` — the dashboard: Angular 22 + Angular Material, desktop-first, installed as
-  a PWA on the household's iPhones. Current release **0.17.0** (2026-10-16, HAS-240 — the weather strip on every page and the weather tile of the overview; 0.16.0, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
+  a PWA on the household's iPhones. Current release **0.18.0** (2026-10-16, HAS-241 — the weather page with its six history charts; 0.17.0, HAS-240 — the weather strip on every page and the weather tile of the overview; 0.16.0, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
   administration of the device registry). Its plan: epics HAS-184 (foundation), HAS-185
   (heating / hot water / boiler room), HAS-186 (room view on the phone), HAS-187 (presence and
   household administration); frontend tasks carry the label `frontend`. Everything about it is
