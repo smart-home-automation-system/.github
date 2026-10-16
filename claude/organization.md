@@ -43,7 +43,7 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 |---|---|---|---|
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0) | ai, amx, api-gateway, blinds, boiler, database, heating, notification, presence, shelly-cloud, water, weather | **1.9.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
-| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, presence, shelly-cloud, water, weather | **1.9.0** |
+| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, presence, shelly-cloud, water, weather | **1.10.0** (HAS-289: the room `hall up`, `hall_up` still read) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds (2.1.0); boiler, heating, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
 Versions in the services (2026-10-16): `cholewa-commons` 1.9.0 on blinds and weather; 1.8.0 on amx,
