@@ -27,7 +27,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard | **1.9.2** |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
-| `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off) | **0.15.0** (2026-10-15, HAS-288) |
+| `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off) | **0.15.1** (2026-10-17, HAS-289) |
 | `water-service` | 6006 | Hot water: reads a Shelly Uni every 3 min, keeps the flag `boiler-service` polls (on below 38 °C, off above 42), serves the dated reading and the stored history | **0.6.0** |
 | `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.3.2** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton** (Actuator only, no endpoints) | **0.1.1** |
@@ -46,9 +46,9 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, presence, shelly-cloud, water, weather | **1.10.0** (HAS-289: the room `hall up`, `hall_up` still read) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds (2.1.0); boiler, heating, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
-Versions in the services (2026-10-16): `cholewa-commons` 1.9.0 on blinds and weather; 1.8.0 on amx,
-api-gateway, boiler, database, heating, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.9.0 on amx, blinds, database and weather; 1.6.0 on boiler, heating, water; 1.3.0 on presence
+Versions in the services (2026-10-17): `cholewa-commons` 1.9.0 on blinds, database and weather; 1.8.0 on amx,
+api-gateway, boiler, heating, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
+`smart-home-sdk` 1.10.0 on database; 1.9.0 on amx, blinds and weather; 1.6.0 on boiler, heating, water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -69,6 +69,9 @@ every consumer:
   The `generation` of a Shelly is 1–4: ask `>= 2`. Do not build on 1.7.0 (1.8.0 replaced it
   the same day: a Bluetooth sensor has no gateway, `DeviceKind` has `temperature sensor`).
   `EatonRxEvent` and `RxEventType` of `amx-service` share names, not order: map by name.
+  **`hall up` (1.10.0, HAS-289)**: `RoomName.HALL_UP` was `hall_up` until 1.9.0 - a renamed value, so
+  the same rule as a new one: no member or device is set to hall up until every reader of the
+  registries (amx, blinds, presence, the dashboard) runs 1.10.0; 1.10.0 still reads `hall_up`.
 - **`shelly-client` 2.0.0** registers three beans in every WebFlux application that bumps it
   (`ShellyRpcClient`, `ShellyGen1Client`, `ShellyMqttDecoder`; `shelly.client.enabled: false`
   keeps them out). States are text, not enums; what a device did not send is `null`; nothing
