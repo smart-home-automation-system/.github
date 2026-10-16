@@ -32,7 +32,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.3.2** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton** (Actuator only, no endpoints) | **0.1.1** |
 | `presence-service` | 6009 | Household presence: UniFi clients matched against the household registry every minute, status changes stored, four routed reports, nightly retention (`P365D`). State in the memory of one instance: `Recreate`, never scaled | **0.6.0** |
-| `weather-service` | 6010 | The weather station (epic HAS-233): a Shelly WS90 read locally through a BTHome gateway, the readings kept and served to the dashboard, the blinds schedules and the overview. A **skeleton** since HAS-235: consumes `device.prod.weather`, the notification publisher, a client of the device registry, own database `home-automation-weather`; no endpoints yet (HAS-238), not routed (HAS-239). The station is adopted by the Plug S Gen3 TREADMILL (HAS-234; registry: gateway 54, station 55): its 13 readings arrive as `<gatewayId>/status/bthomesensor:200..212`, each only when its value changes (details in `deployment-tools/scripts/shelly/devices.md`) | **0.1.0** (2026-10-15, HAS-235) |
+| `weather-service` | 6010 | The weather station (epic HAS-233): a Shelly WS90 read locally through a BTHome gateway, the readings kept and served to the dashboard, the blinds schedules and the overview. The station is adopted by the Plug S Gen3 TREADMILL (HAS-234; registry: gateway 54, station 55). Takes in the readings (HAS-236): the station and its gateway from the registry, which `bthomesensor` is which metric from the gateway (`Shelly.GetComponents`), the current state in memory from the status topics (13 metrics, each published only on a change) and from the read of the gateway, a snapshot a minute into `weather_reading` of its own database `home-automation-weather` (after a change only). `Recreate`, never scaled. No endpoints yet (HAS-238), not routed (HAS-239) | **0.2.2** (2026-10-16, HAS-236) |
 | `blinds-service` | 6011 | Roller shutters (epic HAS-242): Eaton blinds through `amx-service`, Shelly blinds, the real state, weather-aware schedules. Knows the blinds from the device registry (every 5 min) and moves them on command through three drivers - Shelly Gen1 roller, Shelly Gen2 cover, Eaton through `amx-service` (HAS-244); `POST /home/blinds/{id}`, `/{id}/position`, `/rooms/{room}`. Tracks the real state of every blind (HAS-245): Gen2 covers from `device.prod.blinds` (MQTT) plus `Cover.GetStatus` every 5 min, Gen1 rollers by `/status` every 60 s and their `roller_*_url` actions on `GET /home/blinds/events/gen1`, Eaton from the `status` events of `amx-service`; table `blinds_state`; `GET /home/blinds`, `/rooms/{room}`, `/{id}`. Stores the schedules (HAS-246): CRUD under `/schedules`, `INVALID_SCHEDULE` / `NOT_FOUND_SCHEDULE` (texts for the dashboard, HAS-253); nothing runs them yet (HAS-247). Nothing routed yet (HAS-251 must include `/events/gen1` and `/schedules`). Own database, `Recreate`, never scaled | **0.4.0** (2026-10-15, HAS-246) |
 
 Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardware bridge).
@@ -44,7 +44,7 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0) | ai, amx, api-gateway, blinds, boiler, database, heating, notification, presence, shelly-cloud, water, weather | **1.9.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, presence, shelly-cloud, water, weather | **1.9.0** |
-| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | blinds, weather (2.0.0); boiler, heating, shelly-cloud, water (still on 1.0.0) | **2.0.0** |
+| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather (2.1.0), blinds (2.0.0); boiler, heating, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
 Versions in the services (2026-10-15): `cholewa-commons` 1.9.0 on weather; 1.8.0 on amx,
 api-gateway, blinds, boiler, database, heating, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
@@ -75,7 +75,9 @@ every consumer:
   is retried; the decoder **throws** on a body that is not what its topic carries — catch it
   inside the listener chain. `SwitchStatus` is the switch for new code
   (`ShellyPro4StatusResponse` reads power as integers). No command was ever sent to a device of
-  the house through it: check the first real one on one device.
+  the house through it: check the first real one on one device. **The BTHome components are not in
+  `Shelly.GetStatus`**: `dynamicComponents` (2.1.0) reads them from `Shelly.GetComponents`, page by
+  page - checked on the gateway of the weather station.
 - **`cholewa-commons`**: the pooled `ConnectionFactory` from the `database.*` group (a service
   pins only `database.pool.max-size`), `NotificationPublisher` (`cholewa.notification.*`, `env`
   mandatory, no default), the pod-named RabbitMQ connection, English validation messages, the
