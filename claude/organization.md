@@ -384,6 +384,9 @@ monitoring through the household notifications.
   the wire and the domain model apart. Tests use `mockwebserver3`, never the legacy
   `mockwebserver` (JUnit 4 — still in heating and water); a `MockWebServer` per test, no fixed
   port, no shared connection pool.
+- **A publisher is verified as `publisher.as(StepVerifier::create)`** - the only acceptable form in
+  every repository (owner, 2026-10-16); never `StepVerifier.create(publisher)`. Older tests are
+  converted in the files a task touches (blinds-service and cholewa-commons still have them).
 - **Repository tests**: H2 in a `@DataR2dbcTest` slice for portable statements; Testcontainers
   PostgreSQL for PostgreSQL-only SQL (heating and water fail without a Docker,
   `database-service` skips without one — but not where `CI=true`).
