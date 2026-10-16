@@ -89,7 +89,7 @@ every consumer:
   account (`magikabdul/amx-tenczynek`); the workspace directory is named `amx`. The masters
   and their addresses are in `src/systemCholewaTenczynek.apw`.
 - `web-application` — the dashboard: Angular 22 + Angular Material, desktop-first, installed as
-  a PWA on the household's iPhones. Current release **0.16.0** (2026-10-15, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
+  a PWA on the household's iPhones. Current release **0.17.0** (2026-10-16, HAS-240 — the weather strip on every page and the weather tile of the overview; 0.16.0, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
   administration of the device registry). Its plan: epics HAS-184 (foundation), HAS-185
   (heating / hot water / boiler room), HAS-186 (room view on the phone), HAS-187 (presence and
   household administration); frontend tasks carry the label `frontend`. Everything about it is
@@ -123,7 +123,7 @@ every consumer:
     each one** (the Eaton inventory of 2026-10-15 through the API, not the dashboard) — never
     from a test, never in bulk.
   - Endpoints it needs: `heating-service` ≥ 1.9.0, `water-service` ≥ 0.6.0, `database-service`
-    ≥ 0.13.0, gateway ≥ 0.5.0; against an older one a card shows the 404 and the rest works.
+    ≥ 0.13.0, `weather-service` ≥ 0.4.0, gateway ≥ 0.6.0; against an older one a card shows the 404 and the rest works.
   - The Definition of Done is the one of a service fitted to the frontend: `/code-review` and
     `/security-review` on the PR, verification in a browser, a live preview before the PR is
     called ready, release and deploy in every task.
