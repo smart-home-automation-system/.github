@@ -23,7 +23,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | Repository | Local port | Purpose | Release |
 |---|---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic) | **0.7.0** (2026-10-16, HAS-251) |
-| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light, dimmer, push button or PIR sensor reports as `DeviceEvent` to `/device` (HAS-229, HAS-288); `POST /home/amx` is gone since 2.0.0 (HAS-286) | **2.2.0** (2026-10-15, HAS-288) |
+| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light, dimmer, push button or PIR sensor reports as `DeviceEvent` to `/device` (HAS-229, HAS-288); `POST /home/amx` is gone since 2.0.0 (HAS-286); asks a blinds actuator for its status (`0B`, `POST /home/amx/eaton/blinds/{point}/status`, HAS-291) | **2.3.0** (2026-10-17, HAS-291) |
 | `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard | **1.9.2** |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
@@ -46,9 +46,9 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, presence, shelly-cloud, water, weather | **1.10.0** (HAS-289: the room `hall up`, `hall_up` still read) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds (2.1.0); boiler, heating, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
-Versions in the services (2026-10-17): `cholewa-commons` 1.9.0 on blinds, database and weather; 1.8.0 on amx,
+Versions in the services (2026-10-17): `cholewa-commons` 1.9.0 on amx, blinds, database and weather; 1.8.0 on
 api-gateway, boiler, heating, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.10.0 on database; 1.9.0 on amx, blinds and weather; 1.6.0 on boiler, heating, water; 1.3.0 on presence
+`smart-home-sdk` 1.10.0 on amx and database; 1.9.0 on blinds and weather; 1.6.0 on boiler, heating, water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
