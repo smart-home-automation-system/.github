@@ -24,7 +24,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 |---|---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic) | **0.7.0** (2026-10-16, HAS-251) |
 | `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light, dimmer, push button or PIR sensor reports as `DeviceEvent` to `/device` (HAS-229, HAS-288); `POST /home/amx` is gone since 2.0.0 (HAS-286); asks a blinds actuator for its status (`0B`, `POST /home/amx/eaton/blinds/{point}/status`, HAS-291) | **2.3.0** (2026-10-17, HAS-291) |
-| `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard | **1.9.2** |
+| `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard. Open windows (HAS-232): the opening sensors of a room from the registry and the BTHome gateways (a copy of `WindowSensors` of blinds-service, per room), the `bthomesensor` topics of `device.prod.heating` over a third connection to `/device` (`device-rabbitmq-password`); a window or door open for `heating.window.hold-after` (**PT3M**) holds every heater of the room (checked every minute too), an unknown sensor never holds and a silent one is an alert; `GET /rooms` answers `window` (`state` as in blinds, `openSince`, `hold`) | **1.10.0** (2026-10-17, HAS-232) |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
 | `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off); since 0.16.0 the `openingSensors` of blinds (V16, each a registered opening sensor; a sensor in use is not removed - `DEVICE_CONFLICT`) | **0.16.0** (2026-10-17, HAS-290) |
@@ -44,11 +44,11 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0) | ai, amx, api-gateway, blinds, boiler, database, heating, notification, presence, shelly-cloud, water, weather | **1.9.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, presence, shelly-cloud, water, weather | **1.11.0** (HAS-290: `SmartDevice.openingSensors` of blinds) |
-| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds (2.1.0); boiler, heating, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
+| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating (2.1.0); boiler, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
-Versions in the services (2026-10-17): `cholewa-commons` 1.9.0 on amx, blinds, database and weather; 1.8.0 on
-api-gateway, boiler, heating, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.11.0 on blinds and database; 1.10.0 on amx; 1.9.0 on weather; 1.6.0 on boiler, heating, water; 1.3.0 on presence
+Versions in the services (2026-10-17): `cholewa-commons` 1.9.0 on amx, blinds, database, heating and weather; 1.8.0 on
+api-gateway, boiler, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
+`smart-home-sdk` 1.11.0 on blinds, database and heating; 1.10.0 on amx; 1.9.0 on weather; 1.6.0 on boiler, water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -393,8 +393,8 @@ monitoring through the household notifications.
 - **Mandatory connection settings get no default** in a document a pod runs with; and a
   placeholder is not a value — `${rabbitmq-password}` without the variable binds as its own
   text. `cholewa.required-properties` of `cholewa-commons` ≥ 1.9.0 refuses the start before the
-  first bean (weather, blinds); heating and boiler still carry a `BrokerPasswordCheck` copy and
-  drop it with their next task — the copies run after an ordered post-processor, the library does not.
+  first bean (weather, blinds); boiler still carries a `BrokerPasswordCheck` copy and
+  drops it with its next task (heating dropped its own in HAS-232) — the copies run after an ordered post-processor, the library does not.
 - **Calling a device or gateway outside the cluster** (HAS-149): pin a self-signed certificate by
   fingerprint (`setEndpointIdentificationAlgorithm("")` to drop hostname verification — `null`
   is ignored); map every failure, the body included (`bodyDelay`, a closed socket, `{}`); keep
@@ -420,7 +420,7 @@ monitoring through the household notifications.
   built with `jq` and `curl` — copy it from `smart-home-sdk/.github/workflows/CI.yml`. No task of
   its own: convert a repository in the PR of its next task. Converted: `smart-home-sdk`,
   `database-service`, `api-gateway-service`, `shelly-client`, `amx-service`, `blinds-service`, `weather-service`
-  (new); 10 repositories still have the old form.
+  (new), `heating-service`; 9 repositories still have the old form.
 
 ## Working rules for Claude
 
