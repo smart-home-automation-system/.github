@@ -96,7 +96,7 @@ every consumer:
   account (`magikabdul/amx-tenczynek`); the workspace directory is named `amx`. The masters
   and their addresses are in `src/systemCholewaTenczynek.apw`.
 - `web-application` — the dashboard: Angular 22 + Angular Material, desktop-first, installed as
-  a PWA on the household's iPhones. Current release **0.21.1** (2026-10-18, HAS-252 — the state of a blind in the words of `BlindState` (`open`); 0.21.0 — the blinds page "Rolety": the holidays and the whole house at the top, a card of one size per room with blinds, the schedules of a room in a window, the switch of a schedule; 0.20.0, HAS-232 — the Rooms view: every room with its devices by row, lights and blinds controlled from a room, the pause of the schedules of a blind; the windows and the hold on the heating page; the menu order overview, my room, weather, rooms; 0.19.1, HAS-290 — the devices page as a card of one size per room with the devices in a window, floors with Circulation, the opening sensors of blinds; 0.18.1, HAS-289 — the room `hall up`; 0.18.0, HAS-241 — the weather page with its six history charts; 0.17.0, HAS-240 — the weather strip on every page and the weather tile of the overview; 0.16.0, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
+  a PWA on the household's iPhones. Current release **0.22.0** (2026-10-18, HAS-253 — the editor of a schedule of the blinds under `/blinds/schedules`; 0.21.1, HAS-252 — the state of a blind in the words of `BlindState` (`open`); 0.21.0 — the blinds page "Rolety": the holidays and the whole house at the top, a card of one size per room with blinds, the schedules of a room in a window, the switch of a schedule; 0.20.0, HAS-232 — the Rooms view: every room with its devices by row, lights and blinds controlled from a room, the pause of the schedules of a blind; the windows and the hold on the heating page; the menu order overview, my room, weather, rooms; 0.19.1, HAS-290 — the devices page as a card of one size per room with the devices in a window, floors with Circulation, the opening sensors of blinds; 0.18.1, HAS-289 — the room `hall up`; 0.18.0, HAS-241 — the weather page with its six history charts; 0.17.0, HAS-240 — the weather strip on every page and the weather tile of the overview; 0.16.0, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
   administration of the device registry). Its plan: epics HAS-184 (foundation), HAS-185
   (heating / hot water / boiler room), HAS-186 (room view on the phone), HAS-187 (presence and
   household administration); frontend tasks carry the label `frontend`. Everything about it is
@@ -130,7 +130,9 @@ every consumer:
     `blinds-service` (commands, the pause of their schedules) and the Eaton lights through
     `amx-service` (`POST /home/amx/lights/{point}`); since 0.21.0 (HAS-252) the room and whole-house
     commands of the blinds (the house is every room, one after the other) and the switch of a
-    schedule of the blinds.
+    schedule of the blinds; since 0.22.0 (HAS-253) the editor of the schedules of the blinds
+    (`POST`, `PUT`, `DELETE /home/blinds/schedules`; it checks a copy of `ScheduleRules`, so a
+    rule changed in `blinds-service` is changed in the dashboard too).
     **Claude writes to the production registries only device by device, after the owner accepts
     each one** (the Eaton inventory of 2026-10-15 through the API, not the dashboard) — never
     from a test, never in bulk.
