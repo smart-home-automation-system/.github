@@ -96,7 +96,7 @@ every consumer:
   account (`magikabdul/amx-tenczynek`); the workspace directory is named `amx`. The masters
   and their addresses are in `src/systemCholewaTenczynek.apw`.
 - `web-application` — the dashboard: Angular 22 + Angular Material, desktop-first, installed as
-  a PWA on the household's iPhones. Current release **0.19.1** (2026-10-17, HAS-290 — the devices page as a card of one size per room with the devices in a window, floors with Circulation, the opening sensors of blinds; 0.18.1, HAS-289 — the room `hall up`; 0.18.0, HAS-241 — the weather page with its six history charts; 0.17.0, HAS-240 — the weather strip on every page and the weather tile of the overview; 0.16.0, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
+  a PWA on the household's iPhones. Current release **0.20.0** (2026-10-18, HAS-232 — the Rooms view: every room with its devices by row, lights and blinds controlled from a room, the pause of the schedules of a blind; the windows and the hold on the heating page; the menu order overview, my room, weather, rooms; 0.19.1, HAS-290 — the devices page as a card of one size per room with the devices in a window, floors with Circulation, the opening sensors of blinds; 0.18.1, HAS-289 — the room `hall up`; 0.18.0, HAS-241 — the weather page with its six history charts; 0.17.0, HAS-240 — the weather strip on every page and the weather tile of the overview; 0.16.0, HAS-288 — the push button as a device kind; 0.15.1, HAS-231 — the
   administration of the device registry). Its plan: epics HAS-184 (foundation), HAS-185
   (heating / hot water / boiler room), HAS-186 (room view on the phone), HAS-187 (presence and
   household administration); frontend tasks carry the label `frontend`. Everything about it is
@@ -123,14 +123,17 @@ every consumer:
     of the house (`FLOORS`; a room it does not know shows under "Other"), and the error codes it
     words (the household and device codes of `CustomErrorDescription` — a renamed or new code
     needs a text in the dashboard).
-  - **It writes to the house in three places only**: the heating switch (`POST
+  - **It writes to the house in five places**: the heating switch (`POST
     /home/heating?turn=on|off`, after a question, never automated — browser tests run on a mock
-    API; `npm start` talks to the real gateway) and the two registries of `database-service`.
+    API; `npm start` talks to the real gateway), the two registries of `database-service`, and
+    since 0.20.0 (HAS-232, the Rooms view, no question by the owner's choice) the blinds of
+    `blinds-service` (commands, the pause of their schedules) and the Eaton lights through
+    `amx-service` (`POST /home/amx/lights/{point}`).
     **Claude writes to the production registries only device by device, after the owner accepts
     each one** (the Eaton inventory of 2026-10-15 through the API, not the dashboard) — never
     from a test, never in bulk.
   - Endpoints it needs: `heating-service` ≥ 1.9.0, `water-service` ≥ 0.6.0, `database-service`
-    ≥ 0.13.0, `weather-service` ≥ 0.4.0, gateway ≥ 0.6.0; against an older one a card shows the 404 and the rest works.
+    ≥ 0.13.0, `weather-service` ≥ 0.4.0, `heating-service` ≥ 1.10.0 and `blinds-service` ≥ 0.8.0 for the Rooms view, gateway ≥ 0.7.0; against an older one a card shows the 404 and the rest works.
   - The Definition of Done is the one of a service fitted to the frontend: `/code-review` and
     `/security-review` on the PR, verification in a browser, a live preview before the PR is
     called ready, release and deploy in every task.
