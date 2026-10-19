@@ -34,6 +34,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | `presence-service` | 6009 | Household presence: UniFi clients matched against the household registry every minute, status changes stored, four routed reports, nightly retention (`P365D`). State in the memory of one instance: `Recreate`, never scaled | **0.6.0** |
 | `weather-service` | 6010 | The weather station (epic HAS-233): a Shelly WS90 read locally through a BTHome gateway, the readings kept and served to the dashboard, the blinds schedules and the overview. The station is adopted by the Plug S Gen3 TREADMILL (HAS-234; registry: gateway 54, station 55). Takes in the readings (HAS-236): the station and its gateway from the registry, which `bthomesensor` is which metric from the gateway (`Shelly.GetComponents`), the current state in memory from the status topics (13 metrics, each published only on a change) and from the read of the gateway, a snapshot a minute into `weather_reading` of its own database `home-automation-weather` (after a change only). Reconciles with the gateway every 5 min and watches it (HAS-237): no reading from the station or no answer from the gateway for 30 min is an alert, a reminder every hour, one info when over; open alerts in `station_alert`. Read API (HAS-238): `GET /home/weather/current` (per metric value, measuredAt, stale), `/status` (gateway reachable, last reading, silent), `/history?metric=&from=&to=` (the rules of the hot-water history, avg/min/max, `UNKNOWN_METRIC`); readings kept 730 days. `Recreate`, never scaled. Routed as a GET allowlist (gateway 0.6.0, HAS-239) | **0.4.0** (2026-10-16, HAS-238) |
 | `blinds-service` | 6011 | Roller shutters (epic HAS-242): Eaton blinds through `amx-service`, Shelly blinds, the real state, weather-aware schedules. Knows the blinds from the device registry (every 5 min) and moves them on command through three drivers - Shelly Gen1 roller, Shelly Gen2 cover, Eaton through `amx-service` (HAS-244); `POST /home/blinds/{id}`, `/{id}/position`, `/rooms/{room}`. Tracks the real state of every blind (HAS-245): Gen2 covers from `device.prod.blinds` (MQTT) plus `Cover.GetStatus` every 5 min, Gen1 rollers by `/status` every 60 s and their `roller_*_url` actions on `GET /home/blinds/events/gen1` (open / close when a roller starts, stop when it stops - then `/status` is read; 0.8.1, configured on the eight rollers in HAS-255), Eaton from the `status` events of `amx-service`; table `blinds_state`; `GET /home/blinds`, `/rooms/{room}`, `/{id}`. Stores the schedules (HAS-246): CRUD under `/schedules`, `INVALID_SCHEDULE` / `NOT_FOUND_SCHEDULE` (texts for the dashboard, HAS-253). Confirms an Eaton move with a status request when its start is not reported (HAS-291). Runs them (HAS-247): every minute from the calendar of `database-service`, the sun (`location-latitude` / `-longitude` of the manifest) and `GET /home/weather/current` (an unknown input never holds), once a window per schedule and blind (`blinds_schedule_run`); `GET /schedules/{id}/today`. Window sensors per blind (HAS-290): the BLU Door/Window sensors linked by `openingSensors`, read from the registered `bthome gateway` devices (`Shelly.GetComponents` every 5 min, `bthomesensor` status topics between); a BLU sensor has no heartbeat, so a state holds while its gateway confirms it (`blinds.window.gateway-silent-after`, PT30M); `window closed` is judged per blind with its own hold; `GET /home/blinds` and `/today` show the window (`closed`, `open`, `no sensor`, `unknown`); a schedule window may cross midnight and belongs to the day it opened on. The pause of the schedules of one blind (HAS-232, supersedes HAS-248): `PUT` / `DELETE /home/blinds/{id}/schedule-pause`, ends by itself with the next run it prevents (stored as `PAUSED`, V4); `GET /home/blinds/{id}/schedules` (today, per blind); `schedulePausedSince` in the reads. Routed by path, every method (gateway 0.7.0, HAS-251). Own database, `Recreate`, never scaled | **0.8.1** (2026-10-18, HAS-255) |
+| `light-service` | 6012 | Lights (epic HAS-256): Eaton lights through `amx-service`, Shelly lights, the real state, room rules driven by motion and presence, the empty house. A **skeleton** since HAS-257: consumes `device.prod.light` on `/device`, the notification publisher, clients of `database-service`, `amx-service` and `presence-service`; no endpoints, not routed. Own database `home-automation-light` (pool 2), `Recreate`, never scaled | **0.1.0** (2026-10-19, HAS-257) |
 
 Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardware bridge).
 
@@ -41,14 +42,14 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 
 | Library | Purpose | Current consumers | Latest |
 |---|---|---|---|
-| `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0) | ai, amx, api-gateway, blinds, boiler, database, heating, notification, presence, shelly-cloud, water, weather | **1.9.0** |
+| `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0) | ai, amx, api-gateway, blinds, boiler, database, heating, light, notification, presence, shelly-cloud, water, weather | **1.9.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
-| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, presence, shelly-cloud, water, weather | **1.11.0** (HAS-290: `SmartDevice.openingSensors` of blinds) |
-| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating (2.1.0); boiler, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
+| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.11.0** (HAS-290: `SmartDevice.openingSensors` of blinds) |
+| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light (2.1.0); boiler, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
-Versions in the services (2026-10-17): `cholewa-commons` 1.9.0 on amx, blinds, database, heating and weather; 1.8.0 on
+Versions in the services (2026-10-19): `cholewa-commons` 1.9.0 on amx, blinds, database, heating, light and weather; 1.8.0 on
 api-gateway, boiler, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.11.0 on blinds, database and heating; 1.10.0 on amx; 1.9.0 on weather; 1.6.0 on boiler, water; 1.3.0 on presence
+`smart-home-sdk` 1.11.0 on blinds, database, heating and light; 1.10.0 on amx; 1.9.0 on weather; 1.6.0 on boiler, water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -296,7 +297,7 @@ monitoring through the household notifications.
 
 - One managed PostgreSQL with **22 usable connections for the whole cluster** (25 minus 3
   reserved), not for this project alone. Split: **heating 2 / database 4 / water 2 /
-  presence 2 / blinds 2 / weather 2 — 14 allotted, 8 free** for Flyway, tools and services to come. It is sized for
+  presence 2 / blinds 2 / weather 2 / light 2 — 16 allotted, 6 free** for Flyway, tools and services to come. It is sized for
   RollingUpdate (the old and the new pod each hold a pool, Flyway adds one): deploy services with
   a database one at a time; raising a pool means redoing the sum; each service pins its size
   with a test.
@@ -419,8 +420,9 @@ monitoring through the household notifications.
   `database-service` skips without one — but not where `CI=true`).
 - **Code moves into `cholewa-commons` only when more than three services use it** (owner,
   2026-10-11). Up to three copies stay — no review finding, no task; note the copy in each
-  service's `CLAUDE.md` (today: `NotificationRabbitConfig`, three copies — heating, blinds,
-  weather; `BrokerPasswordCheck` moved to `cholewa-commons` 1.9.0 with HAS-235).
+  service's `CLAUDE.md` (today: `NotificationRabbitConfig`, **four copies** — heating, blinds,
+  weather, light: the fourth kept by the owner's choice in HAS-257, do not re-raise;
+  `BrokerPasswordCheck` moved to `cholewa-commons` 1.9.0 with HAS-235).
 - Private **LAN IPs** already in service configs are tolerated (2026-07) — do not flag them.
   Secrets, tokens and credentials remain strictly forbidden in public repos.
 - **CI/CD** — GitHub Actions in every repo: `CI.yml` (build + tests), `sonar.yml`, and
@@ -430,7 +432,7 @@ monitoring through the household notifications.
   built with `jq` and `curl` — copy it from `smart-home-sdk/.github/workflows/CI.yml`. No task of
   its own: convert a repository in the PR of its next task. Converted: `smart-home-sdk`,
   `database-service`, `api-gateway-service`, `shelly-client`, `amx-service`, `blinds-service`, `weather-service`
-  (new), `heating-service`; 9 repositories still have the old form.
+  (new), `heating-service`, `light-service` (new); 9 repositories still have the old form.
 
 ## Working rules for Claude
 
