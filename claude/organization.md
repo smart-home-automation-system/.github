@@ -27,7 +27,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard. Open windows (HAS-232): the opening sensors of a room from the registry and the BTHome gateways (a copy of `WindowSensors` of blinds-service, per room), the `bthomesensor` topics of `device.prod.heating` over a third connection to `/device` (`device-rabbitmq-password`); a window or door open for `heating.window.hold-after` (**PT3M**) holds every heater of the room (checked every minute too), an unknown sensor never holds and a silent one is an alert; `GET /rooms` answers `window` (`state` as in blinds, `openSince`, `hold`) | **1.10.0** (2026-10-17, HAS-232) |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
-| `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off); since 0.16.0 the `openingSensors` of blinds (V16, each a registered opening sensor; a sensor in use is not removed - `DEVICE_CONFLICT`) | **0.16.0** (2026-10-17, HAS-290) |
+| `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off); since 0.16.0 the `openingSensors` of blinds (V16, each a registered opening sensor; a sensor in use is not removed - `DEVICE_CONFLICT`); since 0.17.0 a `presence sensor` may have a zone (200-299, `presencezone:200`) as its Shelly channel (V17) | **0.17.0** (2026-10-19, HAS-260) |
 | `water-service` | 6006 | Hot water: reads a Shelly Uni every 3 min, keeps the flag `boiler-service` polls (on below 38 °C, off above 42), serves the dated reading and the stored history | **0.6.0** |
 | `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.3.2** |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton** (Actuator only, no endpoints) | **0.1.1** |
@@ -44,12 +44,12 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 |---|---|---|---|
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0) | ai, amx, api-gateway, blinds, boiler, database, heating, light, notification, presence, shelly-cloud, water, weather | **1.9.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
-| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.11.0** (HAS-290: `SmartDevice.openingSensors` of blinds) |
+| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.12.0** (HAS-260: `ShellyBinding.channel` 0-299 - a zone of a presence sensor) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light (2.1.0); boiler, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
 Versions in the services (2026-10-19): `cholewa-commons` 1.9.0 on amx, blinds, database, heating, light and weather; 1.8.0 on
 api-gateway, boiler, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.11.0 on amx, blinds, database, heating and light; 1.9.0 on weather; 1.6.0 on boiler, water; 1.3.0 on presence
+`smart-home-sdk` 1.12.0 on database; 1.11.0 on amx, blinds, heating and light; 1.9.0 on weather; 1.6.0 on boiler, water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -77,6 +77,9 @@ every consumer:
   registry id - per blind, never per room. A whole-device `PUT` without the list removes the link:
   every writer of whole blinds sends it back (the dashboard keeps a field it does not know since
   0.15.1; Bruno sends what it read).
+  **A channel may be a zone (1.12.0, HAS-260)**: 0-3 is an output of any kind, 200-299 the zone of a
+  `presence sensor` (`presencezone:200`, the main zone of the three Presence Gen4, registry 91-93) -
+  the registry refuses anything else; a reader takes the channel as it comes and never assumes it is below 4.
 - **`shelly-client` 2.0.0** registers three beans in every WebFlux application that bumps it
   (`ShellyRpcClient`, `ShellyGen1Client`, `ShellyMqttDecoder`; `shelly.client.enabled: false`
   keeps them out). States are text, not enums; what a device did not send is `null`; nothing
