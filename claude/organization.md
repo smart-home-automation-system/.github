@@ -476,7 +476,8 @@ monitoring through the household notifications.
   writes the NetLinx code and transfers it to the masters.
 - Never commit or push unless explicitly asked.
 - **Java services and libraries (owner, 2026-10-22): the owner reviews a change of Claude in IntelliJ
-  before it is pushed** - Claude leaves it on the local `feature/HAS-<n>` branch, names the files and
+  before it is pushed** - Claude leaves it **uncommitted** on the local `feature/HAS-<n>` branch (a local
+  commit hides the changes from the Git tool of IntelliJ), names the files and
   waits for the go-ahead; the Sonar findings the IDE shows are fixed before the push, and the PR and CI
   come after. A version bump names where the version was seen (start.spring.io can lag Maven Central).
 - **All changes to Spring services, libraries, `web-application` and the NetLinx code of
