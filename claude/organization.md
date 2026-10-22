@@ -469,6 +469,10 @@ monitoring through the household notifications.
 - **`amx`**: NetLinx language; analysis and suggestions, ask before modifying. The owner
   writes the NetLinx code and transfers it to the masters.
 - Never commit or push unless explicitly asked.
+- **Java services and libraries (owner, 2026-10-22): the owner reviews a change of Claude in IntelliJ
+  before it is pushed** - Claude leaves it on the local `feature/HAS-<n>` branch, names the files and
+  waits for the go-ahead; the Sonar findings the IDE shows are fixed before the push, and the PR and CI
+  come after. A version bump names where the version was seen (start.spring.io can lag Maven Central).
 - **All changes to Spring services, libraries, `web-application` and the NetLinx code of
   `amx` go through pull requests** — no direct commits to `main`. Branch naming:
   **`feature/HAS-<n>`**, where `<n>` is the Jira task number (HAS project). When no Jira
