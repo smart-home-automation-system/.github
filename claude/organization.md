@@ -42,7 +42,7 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 
 | Library | Purpose | Current consumers | Latest |
 |---|---|---|---|
-| `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0), Logbook in the reactive chain so that its lines carry the trace (1.10.0, HAS-298), the actuator left out of its log (1.10.1) | ai, amx, api-gateway, blinds, boiler, database, heating, light, notification, presence, shelly-cloud, water, weather | **1.10.1** |
+| `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0), Logbook in the reactive chain so that its lines carry the trace (1.10.0, HAS-298), the actuator left out of its log (1.10.1), a pool for the scheduler by default and `ScheduledPass.bounded` for every reactive `@Scheduled` pass (1.11.0, HAS-300) | ai, amx, api-gateway, blinds, boiler, database, heating, light, notification, presence, shelly-cloud, water, weather | **1.11.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.12.0** (HAS-260: `ShellyBinding.channel` 0-299 - a zone of a presence sensor) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light (2.1.0); boiler, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
@@ -102,6 +102,12 @@ every consumer:
   handlers. The gateway proxies through its own `HttpClient`: re-test it on the bump. **1.10.1 keeps the
   actuator out of the server side of the log** (`logbook.server.predicate.exclude` defaulted to
   `/actuator/**`; a list of the service's own replaces it whole, so it names the actuator itself).
+  **1.11.0 (HAS-300) gives the scheduler a pool** (`spring.task.scheduling.pool.size` defaulted to 10):
+  Spring blocks a scheduler thread until a reactive `@Scheduled` pass completes, and with Boot's one
+  thread a hung pass stopped every task of blinds-service on 2026-10-22. A service that bumps wraps every
+  reactive `@Scheduled` method in `ScheduledPass.bounded(task, limit, pass)` (limit below its fixed
+  delay; commands that must not be cut off stay outside) and checks that its tasks, now concurrent, share
+  no unsafe state and fit its R2DBC pool together (HAS-301…307).
 
 ### Other repositories
 
