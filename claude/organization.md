@@ -28,7 +28,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
 | `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off); since 0.16.0 the `openingSensors` of blinds (V16, each a registered opening sensor; a sensor in use is not removed - `DEVICE_CONFLICT`); since 0.17.0 a `presence sensor` may have a zone (200-299, `presencezone:200`) as its Shelly channel (V17) | **0.17.0** (2026-10-19, HAS-260) |
-| `water-service` | 6006 | Hot water: reads a Shelly Uni every 3 min, keeps the flag `boiler-service` polls (on below 38 °C, off above 42), serves the dated reading and the stored history | **0.6.0** |
+| `water-service` | 6006 | Hot water: reads a Shelly Uni every 3 min, keeps the flag `boiler-service` polls (on below 38 °C, off above 42), serves the dated reading and the stored history | **0.6.1** (2026-10-23, HAS-307: the reading bounded, a 5 s response timeout of the Shelly, no schedule in tests) |
 | `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.4.0** (2026-10-23, HAS-306: the control pass bounded at 3 min, cholewa-commons 1.11.0) |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton** (Actuator only, no endpoints) | **0.1.1** |
 | `presence-service` | 6009 | Household presence: UniFi clients matched against the household registry every minute, status changes stored, four routed reports, nightly retention (`P365D`). State in the memory of one instance: `Recreate`, never scaled | **0.6.1** (2026-10-23, HAS-305: both passes bounded, cholewa-commons 1.11.0; the UniFi calls logged by its own body-less Logbook filter) |
@@ -45,11 +45,11 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0), Logbook in the reactive chain so that its lines carry the trace (1.10.0, HAS-298), the actuator left out of its log (1.10.1), a pool for the scheduler by default and `ScheduledPass.bounded` for every reactive `@Scheduled` pass (1.11.0, HAS-300) | ai, amx, api-gateway, blinds, boiler, database, heating, light, notification, presence, shelly-cloud, water, weather | **1.11.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.12.0** (HAS-260: `ShellyBinding.channel` 0-299 - a zone of a presence sensor) |
-| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light, boiler (2.1.0 - boiler with its clients switched off); shelly-cloud, water (still on 1.0.0) | **2.1.0** |
+| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light, boiler, water (2.1.0 - boiler and water with its clients switched off); shelly-cloud (still on 1.0.0) | **2.1.0** |
 
-Versions in the services (2026-10-23): `cholewa-commons` 1.11.0 on amx, blinds, boiler, heating, light, presence and weather; 1.9.0 on api-gateway and database;
-1.8.0 on notification; 1.7.0 on ai, shelly-cloud, water.
-`smart-home-sdk` 1.12.0 on amx, blinds, boiler, database, heating, light, presence and weather; 1.6.0 on water; 1.3.0 on
+Versions in the services (2026-10-23): `cholewa-commons` 1.11.0 on amx, blinds, boiler, heating, light, presence, water and weather; 1.9.0 on api-gateway and database;
+1.8.0 on notification; 1.7.0 on ai and shelly-cloud.
+`smart-home-sdk` 1.12.0 on amx, blinds, boiler, database, heating, light, presence, water and weather; 1.3.0 on
 shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -365,7 +365,7 @@ monitoring through the household notifications.
 
 - **Target: Java 21, Spring Boot 4.1.x** (`spring-boot-starter-parent`), Maven, groupId
   `cloud.cholewa`. The migration from Java 17 / Boot 4.0.1 is **finished** for every repository
-  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, amx, blinds, boiler, heating, light, presence and weather on **4.1.2**.
+  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, amx, blinds, boiler, heating, light, presence, water and weather on **4.1.2**.
 - **Spring Boot and the own libraries follow one rule**: when a newer release exists, the
   repository being worked on moves to it in that task (a no-op bump included); the others follow
   with their next task. A mixed fleet after a release is the expected state, not drift to
@@ -464,7 +464,7 @@ monitoring through the household notifications.
   built with `jq` and `curl` — copy it from `smart-home-sdk/.github/workflows/CI.yml`. No task of
   its own: convert a repository in the PR of its next task. Converted: `smart-home-sdk`,
   `database-service`, `api-gateway-service`, `shelly-client`, `amx-service`, `blinds-service`, `weather-service`
-  (new), `heating-service`, `light-service` (new), `boiler-service`, `presence-service`; 7 repositories still have the old form.
+  (new), `heating-service`, `light-service` (new), `boiler-service`, `presence-service`, `water-service`; 6 repositories still have the old form.
 
 ## Working rules for Claude
 
