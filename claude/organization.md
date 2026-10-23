@@ -23,7 +23,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | Repository | Local port | Purpose | Release |
 |---|---|---|---|
 | `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic) | **0.8.0** (2026-10-19, HAS-265) |
-| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light, dimmer, push button or PIR sensor reports as `DeviceEvent` to `/device` (HAS-229, HAS-288); `POST /home/amx` is gone since 2.0.0 (HAS-286); asks a blinds actuator (`0B`, `POST /home/amx/eaton/blinds/{point}/status`, HAS-291) or a light actuator (`.../lights/{point}/status`, HAS-259) for its status | **2.4.0** (2026-10-19, HAS-259) |
+| `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light, dimmer, push button or PIR sensor reports as `DeviceEvent` to `/device` (HAS-229, HAS-288); `POST /home/amx` is gone since 2.0.0 (HAS-286); asks a blinds actuator (`0B`, `POST /home/amx/eaton/blinds/{point}/status`, HAS-291) or a light actuator (`.../lights/{point}/status`, HAS-259) for its status; tells the household when the frame server is not connected for 5 min (an alert, hourly reminders, an info on the return - HAS-309) | **2.5.0** (2026-10-23, HAS-309) |
 | `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard. Open windows (HAS-232): the opening sensors of a room from the registry and the BTHome gateways (a copy of `WindowSensors` of blinds-service, per room), the `bthomesensor` topics of `device.prod.heating` over a third connection to `/device` (`device-rabbitmq-password`); a window or door open for `heating.window.hold-after` (**PT3M**) holds every heater of the room (checked every minute too), an unknown sensor never holds and a silent one is an alert; `GET /rooms` answers `window` (`state` as in blinds, `openSince`, `hold`). Its Logbook lines carry the `traceId` since 1.11.0 (HAS-298, the first consumer of `cholewa-commons` 1.10.0; its own `LogbookClientHandler` are gone; 1.11.1 - the actuator out of the log) | **1.11.2** (2026-10-22, HAS-303: every scheduled task bounded, the scheduler pool of cholewa-commons 1.11.0) |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — two listener containers on purpose (HAS-179) | **0.4.4** |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
@@ -47,9 +47,9 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.12.0** (HAS-260: `ShellyBinding.channel` 0-299 - a zone of a presence sensor) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light (2.1.0); boiler, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
-Versions in the services (2026-10-22): `cholewa-commons` 1.11.0 on blinds, heating and light; 1.9.0 on amx, api-gateway, database and
+Versions in the services (2026-10-23): `cholewa-commons` 1.11.0 on amx, blinds, heating and light; 1.9.0 on api-gateway, database and
 weather; 1.8.0 on boiler, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.12.0 on blinds, database, heating and light; 1.11.0 on amx; 1.9.0 on weather; 1.6.0 on boiler, water; 1.3.0 on presence
+`smart-home-sdk` 1.12.0 on amx, blinds, database, heating and light; 1.9.0 on weather; 1.6.0 on boiler, water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -195,8 +195,8 @@ every consumer:
     routed by. Queues have a 1-hour TTL and no dead-letter queue (accepted 2026-10-05): a
     publisher that cares repeats. Publishers: `heating-service` (silent sensors),
     `boiler-service` (the boiler Shelly), `weather-service` (the weather station and its gateway), `light-service`
-    (the Shelly lights and the sensors of the occupancy, the empty house) and `blinds-service` (the Shelly blinds,
-    unconfirmed commands). `GET /home/notification/skippy?message=&level=`
+    (the Shelly lights and the sensors of the occupancy, the empty house), `blinds-service` (the Shelly blinds,
+    unconfirmed commands) and `amx-service` (the frame server of the AMX master, HAS-309). `GET /home/notification/skippy?message=&level=`
     through a port-forward is the smoke test.
   - `/device` (users `shelly` for the devices, `device` for the services) — MQTT, below;
     `amx-service` publishes the Eaton `DeviceEvent` there over AMQP (connection `<pod>/device`).
@@ -365,7 +365,7 @@ monitoring through the household notifications.
 
 - **Target: Java 21, Spring Boot 4.1.x** (`spring-boot-starter-parent`), Maven, groupId
   `cloud.cholewa`. The migration from Java 17 / Boot 4.0.1 is **finished** for every repository
-  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, blinds, heating and light on **4.1.2**.
+  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, amx, blinds, heating and light on **4.1.2**.
 - **Spring Boot and the own libraries follow one rule**: when a newer release exists, the
   repository being worked on moves to it in that task (a no-op bump included); the others follow
   with their next task. A mixed fleet after a release is the expected state, not drift to
@@ -452,8 +452,8 @@ monitoring through the household notifications.
   `database-service` skips without one — but not where `CI=true`).
 - **Code moves into `cholewa-commons` only when more than three services use it** (owner,
   2026-10-11). Up to three copies stay — no review finding, no task; note the copy in each
-  service's `CLAUDE.md` (today: `NotificationRabbitConfig`, **four copies** — heating, blinds,
-  weather, light: the fourth kept by the owner's choice in HAS-257, do not re-raise;
+  service's `CLAUDE.md` (today: `NotificationRabbitConfig`, **five copies** — heating, blinds,
+  weather, light, amx: the fourth and the fifth kept by the owner's choice (HAS-257, HAS-309), do not re-raise;
   `BrokerPasswordCheck` moved to `cholewa-commons` 1.9.0 with HAS-235).
 - Private **LAN IPs** already in service configs are tolerated (2026-07) — do not flag them.
   Secrets, tokens and credentials remain strictly forbidden in public repos.
