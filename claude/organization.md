@@ -29,7 +29,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI) | **0.2.1** |
 | `database-service` | 6005 | Persistence facade: the household registry (members, devices, roles, rooms, permissions; the profiles of the dashboard), the **device registry** of every device of the house (read and written; the Eaton configuration `amx-service` asks for is served from it) and the **calendar of the house** (days off); since 0.16.0 the `openingSensors` of blinds (V16, each a registered opening sensor; a sensor in use is not removed - `DEVICE_CONFLICT`); since 0.17.0 a `presence sensor` may have a zone (200-299, `presencezone:200`) as its Shelly channel (V17) | **0.17.0** (2026-10-19, HAS-260) |
 | `water-service` | 6006 | Hot water: reads a Shelly Uni every 3 min, keeps the flag `boiler-service` polls (on below 38 °C, off above 42), serves the dated reading and the stored history | **0.6.0** |
-| `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.3.2** |
+| `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4; alerts when that Shelly stops answering (HAS-109) | **1.4.0** (2026-10-23, HAS-306: the control pass bounded at 3 min, cholewa-commons 1.11.0) |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration — a **skeleton** (Actuator only, no endpoints) | **0.1.1** |
 | `presence-service` | 6009 | Household presence: UniFi clients matched against the household registry every minute, status changes stored, four routed reports, nightly retention (`P365D`). State in the memory of one instance: `Recreate`, never scaled | **0.6.0** |
 | `weather-service` | 6010 | The weather station (epic HAS-233): a Shelly WS90 read locally through a BTHome gateway, the readings kept and served to the dashboard, the blinds schedules and the overview. The station is adopted by the Plug S Gen3 TREADMILL (HAS-234; registry: gateway 54, station 55). Takes in the readings (HAS-236): the station and its gateway from the registry, which `bthomesensor` is which metric from the gateway (`Shelly.GetComponents`), the current state in memory from the status topics (13 metrics, each published only on a change) and from the read of the gateway, a snapshot a minute into `weather_reading` of its own database `home-automation-weather` (after a change only). Reconciles with the gateway every 5 min and watches it (HAS-237): no reading from the station or no answer from the gateway for 30 min is an alert, a reminder every hour, one info when over; open alerts in `station_alert`. Read API (HAS-238): `GET /home/weather/current` (per metric value, measuredAt, stale), `/status` (gateway reachable, last reading, silent), `/history?metric=&from=&to=` (the rules of the hot-water history, avg/min/max, `UNKNOWN_METRIC`); readings kept 730 days. `Recreate`, never scaled. Routed as a GET allowlist (gateway 0.6.0, HAS-239) | **0.4.0** (2026-10-16, HAS-238) |
@@ -45,11 +45,11 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0), Logbook in the reactive chain so that its lines carry the trace (1.10.0, HAS-298), the actuator left out of its log (1.10.1), a pool for the scheduler by default and `ScheduledPass.bounded` for every reactive `@Scheduled` pass (1.11.0, HAS-300) | ai, amx, api-gateway, blinds, boiler, database, heating, light, notification, presence, shelly-cloud, water, weather | **1.11.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.12.0** (HAS-260: `ShellyBinding.channel` 0-299 - a zone of a presence sensor) |
-| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light (2.1.0); boiler, shelly-cloud, water (still on 1.0.0) | **2.1.0** |
+| `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light, boiler (2.1.0 - boiler with its clients switched off); shelly-cloud, water (still on 1.0.0) | **2.1.0** |
 
-Versions in the services (2026-10-23): `cholewa-commons` 1.11.0 on amx, blinds, heating and light; 1.9.0 on api-gateway, database and
-weather; 1.8.0 on boiler, notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
-`smart-home-sdk` 1.12.0 on amx, blinds, database, heating and light; 1.9.0 on weather; 1.6.0 on boiler, water; 1.3.0 on presence
+Versions in the services (2026-10-23): `cholewa-commons` 1.11.0 on amx, blinds, boiler, heating and light; 1.9.0 on api-gateway, database and
+weather; 1.8.0 on notification; 1.7.0 on ai, shelly-cloud, water; 1.5.1 on presence.
+`smart-home-sdk` 1.12.0 on amx, blinds, boiler, database, heating and light; 1.9.0 on weather; 1.6.0 on water; 1.3.0 on presence
 and shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -95,8 +95,8 @@ every consumer:
   error contract with `code`. **1.10.0 (HAS-298) changes the logging of every consumer by default**:
   `logbook.reactive.server-mode` is defaulted to `web-filter` and a `LogbookExchangeFilterFunction` is
   put on the injected `WebClient.Builder`, so the Logbook lines carry `traceId` / `spanId` - a service
-  that bumps **removes its own `LogbookClientHandler`** (boiler `AppConfig`, presence `AppConfig`,
-  weather `WebClientConfig`; heating, blinds and light done) or it logs
+  that bumps **removes its own `LogbookClientHandler`** (presence `AppConfig`,
+  weather `WebClientConfig`; heating, blinds, light and boiler done) or it logs
   every outgoing call twice; a `WebClient.create()` or a bare `HttpClient` is not logged; a filter the
   service adds afterwards runs after Logbook's; `cholewa.logbook.reactive-filters: false` keeps the
   handlers. The gateway proxies through its own `HttpClient`: re-test it on the bump. **1.10.1 keeps the
@@ -365,7 +365,7 @@ monitoring through the household notifications.
 
 - **Target: Java 21, Spring Boot 4.1.x** (`spring-boot-starter-parent`), Maven, groupId
   `cloud.cholewa`. The migration from Java 17 / Boot 4.0.1 is **finished** for every repository
-  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, amx, blinds, heating and light on **4.1.2**.
+  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, amx, blinds, boiler, heating and light on **4.1.2**.
 - **Spring Boot and the own libraries follow one rule**: when a newer release exists, the
   repository being worked on moves to it in that task (a no-op bump included); the others follow
   with their next task. A mixed fleet after a release is the expected state, not drift to
@@ -436,8 +436,8 @@ monitoring through the household notifications.
 - **Mandatory connection settings get no default** in a document a pod runs with; and a
   placeholder is not a value — `${rabbitmq-password}` without the variable binds as its own
   text. `cholewa.required-properties` of `cholewa-commons` ≥ 1.9.0 refuses the start before the
-  first bean (weather, blinds); boiler still carries a `BrokerPasswordCheck` copy and
-  drops it with its next task (heating dropped its own in HAS-232) — the copies run after an ordered post-processor, the library does not.
+  first bean (weather, blinds, heating, light, amx, boiler - the last copy of `BrokerPasswordCheck`
+  went with HAS-306); a copy would run after an ordered post-processor, the library does not.
 - **Calling a device or gateway outside the cluster** (HAS-149): pin a self-signed certificate by
   fingerprint (`setEndpointIdentificationAlgorithm("")` to drop hostname verification — `null`
   is ignored); map every failure, the body included (`bodyDelay`, a closed socket, `{}`); keep
@@ -464,7 +464,7 @@ monitoring through the household notifications.
   built with `jq` and `curl` — copy it from `smart-home-sdk/.github/workflows/CI.yml`. No task of
   its own: convert a repository in the PR of its next task. Converted: `smart-home-sdk`,
   `database-service`, `api-gateway-service`, `shelly-client`, `amx-service`, `blinds-service`, `weather-service`
-  (new), `heating-service`, `light-service` (new); 9 repositories still have the old form.
+  (new), `heating-service`, `light-service` (new), `boiler-service`; 8 repositories still have the old form.
 
 ## Working rules for Claude
 
