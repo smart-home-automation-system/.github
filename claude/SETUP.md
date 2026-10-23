@@ -177,6 +177,13 @@ The same pattern serves the RabbitMQ management API (`RABBITMQ_USERNAME` /
 `RABBITMQ_PASSWORD`, its own allow rule); its script and host are private details and live
 in `deployment-tools` (`scripts/rabbitmq-api.sh`).
 
+The SolaX Developer Platform (the hybrid inverter and its battery, the energy work of
+2026-10) uses the same pattern: `SOLAX_CLIENT_ID` / `SOLAX_CLIENT_SECRET` of the
+application created at developer.solaxcloud.com, read by `claude/scripts/solax-api.sh`,
+which fetches the OAuth2 token itself and never prints it:
+`bash organization-repository/claude/scripts/solax-api.sh <path below /openapi/> [curl args]`,
+with its own allow rule (`Bash(bash organization-repository/claude/scripts/solax-api.sh:*)`).
+
 ### 5. Skills
 
 - Built-in Claude Code skills (`/code-review`, `/security-review`, `/review`, …) work out
