@@ -44,7 +44,7 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 |---|---|---|---|
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties checked at the start (`cholewa.required-properties`, 1.9.0), Logbook in the reactive chain so that its lines carry the trace (1.10.0, HAS-298), the actuator left out of its log (1.10.1), a pool for the scheduler by default and `ScheduledPass.bounded` for every reactive `@Scheduled` pass (1.11.0, HAS-300) | ai, amx, api-gateway, blinds, boiler, database, heating, light, notification, presence, shelly-cloud, water, weather | **1.11.0** |
 | `cholewa-security` | Security/auth | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
-| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.12.0** (HAS-260: `ShellyBinding.channel` 0-299 - a zone of a presence sensor) |
+| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, blinds, boiler, database, heating, light, presence, shelly-cloud, water, weather | **1.13.0** (HAS-271: `DeviceKind.appliance` with `ApplianceSettings`, `HouseholdNotification`, `PushSubscription`) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | weather, blinds, heating, light, boiler, water (2.1.0 - boiler and water with its clients switched off); shelly-cloud (still on 1.0.0) | **2.1.0** |
 
 Versions in the services (2026-10-23): `cholewa-commons` 1.11.0 on amx, blinds, boiler, heating, light, presence, water and weather; 1.9.0 on api-gateway and database;
@@ -80,6 +80,14 @@ every consumer:
   **A channel may be a zone (1.12.0, HAS-260)**: 0-3 is an output of any kind, 200-299 the zone of a
   `presence sensor` (`presencezone:200`, the main zone of the three Presence Gen4, registry 91-93) -
   the registry refuses anything else; a reader takes the channel as it comes and never assumes it is below 4.
+  **Appliances (1.13.0, HAS-271)**: `DeviceKind.appliance` with its `ApplianceSettings` (eight
+  required settings, quiet times as `HH:mm` text). The services read the registry by `?kind=`, so
+  only the readers of every kind - the dashboard and `database-service` (two exhaustive switches) -
+  move to 1.13.0 before a plug is registered. `HouseholdNotification` is the JSON payload of the
+  `household` category, words composed by notification-service. `PushSubscription` is a model of its
+  own, **never a field of `HouseholdMember`**: served on endpoints of their own, the read of
+  notification-service outside the routed prefixes (HAS-272); its endpoint takes any https address,
+  so the sender allowlists the push hosts (HAS-276), and it is logged by its endpoint only.
 - **`shelly-client` 2.0.0** registers three beans in every WebFlux application that bumps it
   (`ShellyRpcClient`, `ShellyGen1Client`, `ShellyMqttDecoder`; `shelly.client.enabled: false`
   keeps them out). States are text, not enums; what a device did not send is `null`; nothing
