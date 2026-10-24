@@ -206,6 +206,13 @@ every consumer:
     (the Shelly lights and the sensors of the occupancy, the empty house), `blinds-service` (the Shelly blinds,
     unconfirmed commands) and `amx-service` (the frame server of the AMX master, HAS-309). `GET /home/notification/skippy?message=&level=`
     through a port-forward is the smoke test.
+    **A third category, `household`** (definitions 1.4.0, HAS-273): `notification.<env>.household`,
+    same TTL, no DLQ, but the payload is the **JSON `HouseholdNotification`** of `smart-home-sdk`
+    1.13.0 - words composed by notification-service, in Polish, for the household's own Discord
+    channel, SMS (SMSAPI) and Web Push (consumed from HAS-274 on; publisher `appliance-service`).
+    The VAPID private key and the SMSAPI token are in the secret `notification`; the public key is
+    plain env of notification-service and database-service and the two copies change together
+    (`deployment-tools/README.md`).
   - `/device` (users `shelly` for the devices, `device` for the services) — MQTT, below;
     `amx-service` publishes the Eaton `DeviceEvent` there over AMQP (connection `<pod>/device`).
 - **A RabbitMQ connection is named after its pod** (`cholewa-commons` ≥ 1.8.0, by itself;
