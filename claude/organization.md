@@ -22,7 +22,7 @@ The full history of the decisions summarised here is in `claude/history.md` (an 
 
 | Repository | Local port | Purpose | Release |
 |---|---|---|---|
-| `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic) | **0.8.0** (2026-10-19, HAS-265) |
+| `api-gateway-service` | 6200 | Spring Cloud Gateway — the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic) | **0.9.0** (2026-10-25, HAS-281: route appliance) |
 | `amx-service` | 6001 | Bridge to the AMX control system over **one permanent TCP socket to the frame server of the Television master** (port 20010, NetLinx side HAS-230): receives every Eaton frame of both gateways and publishes the readings, **sends** Eaton frames (blinds, lights, levels) the other way; publishes what an Eaton blinds, light, dimmer, push button or PIR sensor reports as `DeviceEvent` to `/device` (HAS-229, HAS-288); `POST /home/amx` is gone since 2.0.0 (HAS-286); asks a blinds actuator (`0B`, `POST /home/amx/eaton/blinds/{point}/status`, HAS-291) or a light actuator (`.../lights/{point}/status`, HAS-259) for its status; tells the household when the frame server is not connected for 5 min (an alert, hourly reminders, an info on the return - HAS-309) | **2.5.0** (2026-10-23, HAS-309) |
 | `heating-service` | 6002 | Heating control; watches the temperature sensors (an alert after 24 h of silence); serves the rooms, the floor pump and the stored temperature history read-only — the contract of the dashboard. Open windows (HAS-232): the opening sensors of a room from the registry and the BTHome gateways (a copy of `WindowSensors` of blinds-service, per room), the `bthomesensor` topics of `device.prod.heating` over a third connection to `/device` (`device-rabbitmq-password`); a window or door open for `heating.window.hold-after` (**PT3M**) holds every heater of the room (checked every minute too), an unknown sensor never holds and a silent one is an alert; `GET /rooms` answers `window` (`state` as in blinds, `openSince`, `hold`). Its Logbook lines carry the `traceId` since 1.11.0 (HAS-298, the first consumer of `cholewa-commons` 1.10.0; its own `LogbookClientHandler` are gone; 1.11.1 - the actuator out of the log) | **1.11.2** (2026-10-22, HAS-303: every scheduled task bounded, the scheduler pool of cholewa-commons 1.11.0) |
 | `notification-service` | 6003 | Consumes the `alert` and `info` queues and posts each message to the Discord channel `alerts` as an embed coloured by its level — one listener container per queue on purpose (HAS-179); since 0.5.0 the `household` queue: the JSON `HouseholdNotification` worded in Polish (`HouseholdMessages`) and delivered by every transport at once (`HouseholdDispatcher`; Discord household channel today, SMS and Web Push in HAS-275 / HAS-276); `GET /skippy?category=household` is its smoke test, Discord only | **0.5.0** (2026-10-24, HAS-274) |
@@ -48,7 +48,7 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events) | amx, appliance, blinds, boiler, database, heating, light, notification, presence, shelly-cloud, water, weather | **1.13.0** (HAS-271: `DeviceKind.appliance` with `ApplianceSettings`, `HouseholdNotification`, `PushSubscription`) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder | appliance (2.2.0); weather, blinds, heating, light, boiler, water (2.1.0 - boiler and water with its clients switched off); shelly-cloud (still on 1.0.0) | **2.2.0** (HAS-278: `Gen1Meter`, `ShellyGen1Client.meter`) |
 
-Versions in the services (2026-10-24): `cholewa-commons` 1.12.0 on appliance; 1.11.0 on amx, blinds, boiler, database, heating, light, notification, presence, water and weather; 1.9.0 on api-gateway;
+Versions in the services (2026-10-24): `cholewa-commons` 1.12.0 on api-gateway and appliance; 1.11.0 on amx, blinds, boiler, database, heating, light, notification, presence, water and weather;
 1.7.0 on ai and shelly-cloud.
 `smart-home-sdk` 1.13.0 on appliance, database and notification; 1.12.0 on amx, blinds, boiler, heating, light, presence, water and weather; 1.3.0 on
 shelly-cloud. Every service takes the latest with its next task (see Toolchain).
@@ -320,6 +320,8 @@ monitoring through the household notifications.
   HAS-251): the Shelly Gen1 rollers call `GET /home/blinds/events/gen1` through the host-less
   ingress - **a `GET` with a side effect by design** (a Gen1 device can only `GET`), an
   idempotent report of a state, so the repeat-once of a broken read is harmless for it.
+  `appliance-service` too (`/appliance`, `/appliance/**`, every method - gateway 0.9.0, HAS-281): its reads and
+  `POST /home/appliance/{id}/acknowledge`; no `GET` with a side effect.
   `light-service` is routed the same way (`/light`, `/light/**`, every method - gateway 0.8.0,
   HAS-265): its `GET /home/light/events/gen1` (Gen1 lights, the Shelly Motion of the sanctum) is the
   second such `GET`. Every other side effect stays off `GET`.
@@ -335,7 +337,7 @@ monitoring through the household notifications.
   after 24 h, which had produced bare 500s). A `POST` is never repeated. The same stale
   connection between services cost one temperature reading after a `database-service` restart —
   accepted (2026-10-11), do not re-raise.
-- The gateway pins `spring-cloud-starter-gateway-server-webflux` (5.0.3) by hand: no release
+- The gateway pins `spring-cloud-starter-gateway-server-webflux` (5.0.4) by hand: no release
   train targets Boot 4.1. **An accepted risk — re-test the gateway on every bump** of Boot or the
   starter (recipe in its `CLAUDE.md`: the jar with `home,local` and a stub, no cluster needed).
 
@@ -385,7 +387,7 @@ monitoring through the household notifications.
 
 - **Target: Java 21, Spring Boot 4.1.x** (`spring-boot-starter-parent`), Maven, groupId
   `cloud.cholewa`. The migration from Java 17 / Boot 4.0.1 is **finished** for every repository
-  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, amx, appliance, blinds, boiler, database, heating, light, notification, presence, water and weather on **4.1.2**.
+  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, amx, api-gateway, appliance, blinds, boiler, database, heating, light, notification, presence, water and weather on **4.1.2**.
 - **Spring Boot and the own libraries follow one rule**: when a newer release exists, the
   repository being worked on moves to it in that task (a no-op bump included); the others follow
   with their next task. A mixed fleet after a release is the expected state, not drift to
