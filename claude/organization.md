@@ -343,9 +343,12 @@ monitoring through the household notifications.
 
 ### Database
 
-- One managed PostgreSQL with **22 usable connections for the whole cluster** (25 minus 3
-  reserved), not for this project alone. Split: **heating 2 / database 4 / water 2 /
-  presence 2 / blinds 2 / weather 2 / light 2 / appliance 2 — 18 allotted, 4 free** for Flyway and tools; appliance-service (HAS-277) is the last service with a database before the shares are re-cut - a rollout of one service reaches 21. It is sized for
+- One managed PostgreSQL with **47 connections for the whole cluster** (owner, 2026-10-25: plan
+  Basic, 1 vCPU, 2 GB - 22 before), not for this project alone: `ristretto` (another application of
+  the owner, namespace `krisoo`) has a database and a pool of **3** there. Split of this project:
+  **heating 2 / database 4 / water 2 / presence 2 / blinds 2 / weather 2 / light 2 / appliance 2 —
+  18 allotted**; with ristretto 21 of 47, so 26 free for Flyway, tools and the next services (the
+  shares can be re-cut now; the service CLAUDE.md files that still say "22" are fixed in passing). It is sized for
   RollingUpdate (the old and the new pod each hold a pool, Flyway adds one): deploy services with
   a database one at a time; raising a pool means redoing the sum; each service pins its size
   with a test.
