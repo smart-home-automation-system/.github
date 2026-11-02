@@ -184,6 +184,12 @@ which fetches the OAuth2 token itself and never prints it:
 `bash organization-repository/claude/scripts/solax-api.sh <path below /openapi/> [curl args]`,
 with its own allow rule (`Bash(bash organization-repository/claude/scripts/solax-api.sh:*)`).
 
+The Solarman Open API (the SOFAR inverter, HAS-330) too: `SOLARMAN_APP_ID` / `SOLARMAN_APP_SECRET`
+granted by Solarman support, with `SOLARMAN_EMAIL` and `SOLARMAN_PASSWORD_SHA256` (the lowercase
+SHA-256 of the account password) of the Solarman Smart account, read by
+`claude/scripts/solarman-api.sh`, which takes the token itself and never prints it:
+`bash organization-repository/claude/scripts/solarman-api.sh <path below the host> [curl args]`.
+
 ### 5. Skills
 
 - Built-in Claude Code skills (`/code-review`, `/security-review`, `/review`, …) work out
