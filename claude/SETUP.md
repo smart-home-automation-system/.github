@@ -190,6 +190,14 @@ SHA-256 of the account password) of the Solarman Smart account, read by
 `claude/scripts/solarman-api.sh`, which takes the token itself and never prints it:
 `bash organization-repository/claude/scripts/solarman-api.sh <path below the host> [curl args]`.
 
+Docker Hub (the `cleanup-dockerhub` skill) too: `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` (a
+personal access token with Read, Write, Delete), read by `claude/scripts/dockerhub-api.sh`,
+which logs in itself and never prints the token or the JWT:
+`bash organization-repository/claude/scripts/dockerhub-api.sh <path below /v2/> [curl args]`,
+or `dockerhub-api.sh - [curl args] < paths.txt` for many calls under one login (`<user>` in a
+path is replaced by the account name; there is no `jq` on the machine, so the skill parses the
+answers itself). Its allow rule: `Bash(bash organization-repository/claude/scripts/dockerhub-api.sh:*)`.
+
 ### 5. Skills
 
 - Built-in Claude Code skills (`/code-review`, `/security-review`, `/review`, …) work out
