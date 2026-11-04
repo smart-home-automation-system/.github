@@ -257,8 +257,8 @@ Gen1, **one registry of every device in `database-service`**, three domain servi
 monitoring through the household notifications.
 
 - **The broker speaks MQTT on 1883** (plugin `rabbitmq_mqtt`, HAS-219). Every MQTT client lands
-  in `/device` and publishes to `amq.topic`; ten queues `device.<env>.<domain>` (`prod` /
-  `dev` × `weather`, `blinds`, `light`, `heating`, `energy` - definitions 1.5.0, HAS-327), each bound with `#`: **every queue gets
+  in `/device` and publishes to `amq.topic`; twelve queues `device.<env>.<domain>` (`prod` /
+  `dev` × `weather`, `blinds`, `light`, `heating`, `energy`, `water` - definitions 1.6.0, HAS-314), each bound with `#`: **every queue gets
   every event of every device, and its service filters by the registry first**. TTL 10 min,
   no dead-letter queue; about **130 messages a minute** arrive in every queue.
   - The topic is the routing key with `/` turned into `.`: `<id>/status/switch:0` arrives as
@@ -269,6 +269,10 @@ monitoring through the household notifications.
     once a minute and at once on a change, with its `source` — `init` after a restart is not a
     change). `online: false` is the last will of a device; a battery sensor is on the broker
     only while awake. A change of the MQTT settings takes a restart of the device.
+    **One exception, the water valve** (definitions 1.7.0, HAS-314): its XT1 firmware declares its own
+    subscription queue whatever `enable_rpc` says, so `shelly` may configure and read that one queue
+    (`mqtt-subscription-neowatervalve-b08184e15254qos0/1`) and a topic permission keeps what `shelly` reads from
+    `amq.topic` to the topics of the valve; a new device that subscribes gets the same, by its own name.
   - 39 Gen2+ devices and two battery thermometers are connected (HAS-220); the wall display, the
     Bluetooth sensors behind the gateway and the Gen1 devices are not. The topics per model are
     in `deployment-tools/scripts/shelly/devices.md`. The plug PRINTER stays connected as a live
