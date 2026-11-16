@@ -284,6 +284,13 @@ monitoring through the household notifications.
     subscription queue whatever `enable_rpc` says, so `shelly` may configure and read that one queue
     (`mqtt-subscription-neowatervalve-b08184e15254qos0/1`) and a topic permission keeps what `shelly` reads from
     `amq.topic` to the topics of the valve; a new device that subscribes gets the same, by its own name.
+    **The X-Sense SBS50 base station** of the smoke detectors publishes as the user `xsense`
+    (definitions 1.8.0, 2026-11-16; it subscribes on connect, so it has the queue exception of the
+    water valve under its own name, its reads kept to `homeassistant.*`) the Home Assistant MQTT discovery of
+    its detectors - routing keys `homeassistant.<component>.<station>_<detector>.<entity>.state` -
+    which every `device.*` queue gets and no service reads yet; what the base really publishes is
+    being collected in a probe queue (README of `deployment-tools/k8s/rabbitmq`) before a service
+    of the detectors is designed.
   - 39 Gen2+ devices and two battery thermometers are connected (HAS-220); the wall display, the
     Bluetooth sensors behind the gateway and the Gen1 devices are not. The topics per model are
     in `deployment-tools/scripts/shelly/devices.md`. The plug PRINTER stays connected as a live
