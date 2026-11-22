@@ -562,8 +562,9 @@ monitoring through the household notifications.
   task covers the change, create one first (`jira-backlog`) or confirm with the user how to
   proceed.
   - **`amx` (owner, 2026-10-14): `/code-review` alone** before a PR is called ready
-    (`service-review` is written for Spring). Documentation-only changes (`README.md`,
-    `CLAUDE.md`) may go straight to `main`.
+    (`service-review` is written for Spring). Since 2026-11-22 its `main` is protected like
+    the service repositories, so documentation-only changes go through a pull request too; a
+    modified workspace file (`.apw`) is committed with the next change of the repository.
   - **No merge without both reviews.** Before a PR of a service or library is called ready
     for merge, Claude runs **`service-review` and `/code-review`** on its diff, shows the
     results and records the outcome on the PR. Until both are done: no merge, so no release
