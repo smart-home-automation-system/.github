@@ -18,7 +18,8 @@ Since HAS-278: the appliances of the registry every 5 min, each Gen1 plug read e
 
 ## Releases
 
-- **0.9.0** (2026-10-30, HAS-345: `GET /home/appliance/reports/members` - the chores per member against the cycles finished while at home, one SQL aggregation
+- **0.10.0** (2026-11-26, HAS-512: the household profiles read with the permission `amplifier_unlock` (SDK 1.26.0, epic HAS-508); Spring Boot 4.2.0, cholewa-commons 2.0.0, shelly-client 2.7.0, `spring-boot-starter-rabbitmq`)
+- 0.9.0 (2026-10-30, HAS-345: `GET /home/appliance/reports/members` - the chores per member against the cycles finished while at home, one SQL aggregation
 - 0.8.0, HAS-344: the attribution and the presence snapshots, V6
 - 0.7.0, HAS-343: a chore claimed with the NFC tag of the appliance - `POST /home/appliance/claims`, NTAG 424 DNA SUN encrypted, V5
 - 0.6.0, HAS-280: the availability monitor of the plugs
