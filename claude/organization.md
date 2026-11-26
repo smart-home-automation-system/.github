@@ -43,6 +43,7 @@ code. After a release: the history goes into that file, the row here changes onl
 | `aircon-service` | database, heating, presence, energy | safety |
 | `gate-service` | database, weather, presence, amx | amx |
 | `safety-service` | database, light, blinds, aircon | - |
+| `media-service` | - (database from HAS-515) | - |
 
 ### Spring Boot microservices (all reactive — WebFlux)
 
@@ -66,6 +67,7 @@ code. After a release: the history goes into that file, the row here changes onl
 | `aircon-service` | 6015 | The air conditioners: five Gree indoor units over their local protocol (no cloud) - state, commands with the 22 C cooling minimum, a rule per unit, open windows (from heating-service), the empty house and a lost grid, the power draw of their plugs, the filter hours. Takes the command source `safety`. `Recreate`, never scaled. | **0.12.0** (2026-11-22, HAS-467) |
 | `gate-service` | 6016 | The driveway gate and the intercom (the events of the Hikvision door station from the SDK bridge of `deployment-tools`), the two garage gates with their state, alarms and pulse, the events timeline, the household told of a ring and an opening; every ring wakes the door panels (entrance and hall) through amx-service. `POST /home/gate/open` is called by the dashboard and by amx-service (`source=panel`). `Recreate`, never scaled. | **0.13.0** (2026-11-26, HAS-513) |
 | `safety-service` | 6017 | The fire detectors (X-Sense, from the MQTT of the SBS50 base station): state, the fire alarm told to the whole household, the technical monitor, mute and self test, and the reactions to an alarm (lights on, blinds up, air conditioners off - each `source=safety`, behind switches that are off by default). `Recreate`, never scaled. | **0.5.0** (2026-11-22, HAS-468) |
+| `media-service` | 6018 | The audio and video equipment of the house - first the unlock of the amplifier that hangs after every loss of the grid (epic HAS-508; the unlock HAS-515, the route HAS-516, the button HAS-517). No database, no broker, stateless (`RollingUpdate`). Its state cannot be read: never a status or a detection. | **0.1.0** (2026-11-26, HAS-514) |
 
 Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardware bridge).
 
@@ -73,14 +75,14 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 
 | Library | Purpose | Current consumers | Latest |
 |---|---|---|---|
-| `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties, `DomainExceptionProcessor`, Logbook in the reactive chain, the scheduler pool and `ScheduledPass`. | ai, aircon, amx, api-gateway, appliance, blinds, boiler, database, energy, gate, heating, light, notification, presence, safety, shelly-cloud, water, weather | **2.0.0** (HAS-494) |
+| `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties, `DomainExceptionProcessor`, Logbook in the reactive chain, the scheduler pool and `ScheduledPass`. | ai, aircon, amx, api-gateway, appliance, blinds, boiler, database, energy, gate, heating, light, media, notification, presence, safety, shelly-cloud, water, weather | **2.0.0** (HAS-494) |
 | `cholewa-security` | Security / auth. | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
-| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events, household notifications). | aircon, amx, appliance, blinds, boiler, database, energy, gate, heating, light, notification, presence, safety, shelly-cloud, water, weather | **1.26.0** (HAS-509) |
+| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events, household notifications). | aircon, amx, appliance, blinds, boiler, database, energy, gate, heating, light, media, notification, presence, safety, shelly-cloud, water, weather | **1.26.0** (HAS-509) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder. | aircon, appliance, blinds, energy, gate, heating, light, water, weather (2.7.0); boiler (2.1.0 - its clients switched off); shelly-cloud (still on 1.0.0) | **2.7.0** (HAS-389) |
 
-Versions in the services (2026-11-07): `cholewa-commons` 2.0.0 on appliance, database, energy, gate, notification and presence; 1.14.0 on aircon, amx, api-gateway, blinds, heating, light, safety and weather; 1.13.0 on water; 1.11.0 on boiler;
+Versions in the services (2026-11-07): `cholewa-commons` 2.0.0 on appliance, database, energy, gate, media, notification and presence; 1.14.0 on aircon, amx, api-gateway, blinds, heating, light, safety and weather; 1.13.0 on water; 1.11.0 on boiler;
 1.7.0 on ai and shelly-cloud.
-`smart-home-sdk` 1.26.0 on appliance, database, gate and presence; 1.25.0 on amx, energy and notification; 1.24.0 on aircon, blinds, light and safety; 1.21.0 on weather and heating; 1.18.0 on water; 1.12.0 on boiler; 1.3.0 on
+`smart-home-sdk` 1.26.0 on appliance, database, gate, media and presence; 1.25.0 on amx, energy and notification; 1.24.0 on aircon, blinds, light and safety; 1.21.0 on weather and heating; 1.18.0 on water; 1.12.0 on boiler; 1.3.0 on
 shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -444,7 +446,7 @@ monitoring through the household notifications.
 
 - **Target: Java 21, Spring Boot 4.1.x** (`spring-boot-starter-parent`), Maven, groupId
   `cloud.cholewa`. The migration from Java 17 / Boot 4.0.1 is **finished** for every repository
-  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, boiler, heating, water and weather on **4.1.2**, aircon, amx, blinds, light and safety on **4.1.3**, api-gateway (with Spring Cloud 2026.0.0), appliance, database, energy, gate, notification and presence on **4.2.0**.
+  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, boiler, heating, water and weather on **4.1.2**, aircon, amx, blinds, light and safety on **4.1.3**, api-gateway (with Spring Cloud 2026.0.0), appliance, database, energy, gate, media, notification and presence on **4.2.0**.
 - **Spring Boot and the own libraries follow one rule**: when a newer release exists, the
   repository being worked on moves to it in that task (a no-op bump included); the others follow
   with their next task. A mixed fleet after a release is the expected state, not drift to
@@ -548,7 +550,7 @@ monitoring through the household notifications.
   built with `jq` and `curl` — copy it from `smart-home-sdk/.github/workflows/CI.yml`. No task of
   its own: convert a repository in the PR of its next task. Converted: `smart-home-sdk`,
   `database-service`, `api-gateway-service`, `shelly-client`, `amx-service`, `blinds-service`, `weather-service`
-  (new), `heating-service`, `light-service` (new), `boiler-service`, `presence-service`, `water-service`, `notification-service`, `appliance-service` (new), `energy-service` (new), `aircon-service` (new), `gate-service` (new), `safety-service` (new); 5 repositories still have the old form.
+  (new), `heating-service`, `light-service` (new), `boiler-service`, `presence-service`, `water-service`, `notification-service`, `appliance-service` (new), `energy-service` (new), `aircon-service` (new), `gate-service` (new), `safety-service` (new), `media-service` (new); 5 repositories still have the old form.
 
 ## Working rules for Claude
 

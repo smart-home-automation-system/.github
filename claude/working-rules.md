@@ -152,7 +152,7 @@ moves into that repository's `CLAUDE.md` with its next task and is then removed 
 
 - Before any TPDesign4 work ask the owner to open it on a screen nothing covers, and work on a copy of the panel file.
 
-### media-service (epic HAS-508, not built)
+### media-service (epic HAS-508, scaffolded in HAS-514)
 
 - The state of the amplifier cannot be read - never design a status or a detection; its unlock is a button only, never
   automatic after the grid returns (owner, 2026-11-24).
