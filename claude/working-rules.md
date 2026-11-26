@@ -19,9 +19,9 @@ moves into that repository's `CLAUDE.md` with its next task and is then removed 
 
 - No AI attribution anywhere in git history or on GitHub - no `Co-Authored-By` trailer, no "generated with" line, in
   commits, PR titles, descriptions and comments.
-- Commit and push only once the owner said to. **In this project the commit message is not shown for approval** (owner,
-  2026-11-26 - an exception to his global rule, which asks for it): once it is agreed that a change is to be committed or
-  pushed, write the message yourself and commit at once. Still never commit or push without that agreement.
+- Commit and push only once the owner confirmed: say that there are changes and ask whether they may be committed /
+  pushed. **The commit message is not shown for approval** (owner, 2026-11-26; his global rule says the same since) -
+  after the confirmation write the message yourself and commit at once.
 - **`service-review` and `/code-review` run on the local change before it is pushed** (owner, 2026-11-26): the first
   push of a branch already carries their fixes, so the checks on GitHub do not run several times for one change. Order
   for a service or a library: implement, `mvn verify`, both reviews on the local diff and their fixes, the owner's look in

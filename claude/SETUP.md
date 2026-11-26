@@ -93,7 +93,8 @@ which is in no repository. Recreate it with these sections - the rules themselve
   credentials in files; open a new tab and close it when done; reading is free, anything that writes to a production
   system stays subject to the rules of that project.
 - **Git commits and pull requests** - never add AI attribution anywhere in git history or on GitHub; before every
-  commit show the proposed message and wait for approval, commit and push only after it.
+  commit or push say that there are changes and ask whether they may be committed / pushed, and do it only after the
+  owner confirms; the commit message is not shown for approval.
 - **Language** - the whole conversation in Polish, the next-step box and the task list included; only artifacts (code,
   README, commits, PR texts, Jira) are English.
 
