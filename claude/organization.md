@@ -31,7 +31,7 @@ code. After a release: the history goes into that file, the row here changes onl
 | `heating-service` | database | boiler, aircon |
 | `notification-service` | database, presence | - |
 | `ai-service` | - | - |
-| `database-service` | - | amx, heating, notification, water, presence, weather, blinds, light, appliance, energy, aircon, gate, safety |
+| `database-service` | - | amx, heating, notification, water, presence, weather, blinds, light, appliance, energy, aircon, gate, safety, media |
 | `water-service` | database, light, presence | boiler |
 | `boiler-service` | heating, water | - |
 | `presence-service` | database | notification, water, light, appliance, aircon, gate |
@@ -43,7 +43,7 @@ code. After a release: the history goes into that file, the row here changes onl
 | `aircon-service` | database, heating, presence, energy | safety |
 | `gate-service` | database, weather, presence, amx | amx |
 | `safety-service` | database, light, blinds, aircon | - |
-| `media-service` | - (database from HAS-515) | - |
+| `media-service` | database | - |
 
 ### Spring Boot microservices (all reactive — WebFlux)
 
@@ -67,7 +67,7 @@ code. After a release: the history goes into that file, the row here changes onl
 | `aircon-service` | 6015 | The air conditioners: five Gree indoor units over their local protocol (no cloud) - state, commands with the 22 C cooling minimum, a rule per unit, open windows (from heating-service), the empty house and a lost grid, the power draw of their plugs, the filter hours. Takes the command source `safety`. `Recreate`, never scaled. | **0.12.0** (2026-11-22, HAS-467) |
 | `gate-service` | 6016 | The driveway gate and the intercom (the events of the Hikvision door station from the SDK bridge of `deployment-tools`), the two garage gates with their state, alarms and pulse, the events timeline, the household told of a ring and an opening; every ring wakes the door panels (entrance and hall) through amx-service. `POST /home/gate/open` is called by the dashboard and by amx-service (`source=panel`). `Recreate`, never scaled. | **0.13.0** (2026-11-26, HAS-513) |
 | `safety-service` | 6017 | The fire detectors (X-Sense, from the MQTT of the SBS50 base station): state, the fire alarm told to the whole household, the technical monitor, mute and self test, and the reactions to an alarm (lights on, blinds up, air conditioners off - each `source=safety`, behind switches that are off by default). `Recreate`, never scaled. | **0.5.0** (2026-11-22, HAS-468) |
-| `media-service` | 6018 | The audio and video equipment of the house - first the unlock of the amplifier that hangs after every loss of the grid (epic HAS-508; the unlock HAS-515, the route HAS-516, the button HAS-517). No database, no broker, stateless (`RollingUpdate`). Its state cannot be read: never a status or a detection. | **0.1.0** (2026-11-26, HAS-514) |
+| `media-service` | 6018 | The audio and video equipment of the house - first the unlock of the amplifier that hangs after every loss of the grid (epic HAS-508; the route HAS-516, the button HAS-517). `POST /home/media/amplifier/unlock?source=dashboard&member=` sends the amplifier one file of its firmware form, once, one at a time, for a member with `amplifier_unlock` (the profiles of database-service); 202, the seven codes worded by the dashboard. No database, no broker, stateless (`RollingUpdate`). Its state cannot be read: never a status or a detection. | **0.2.0** (2026-11-27, HAS-515) |
 
 Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardware bridge).
 

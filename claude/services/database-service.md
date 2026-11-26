@@ -6,7 +6,7 @@ on this service, or on a service that talks to it, reads first. Its own `CLAUDE.
 ## Depends on - read also
 
 - Calls over HTTP: no service.
-- Called by: `api-gateway-service`, `amx-service`, `heating-service`, `notification-service`, `water-service`, `presence-service`, `weather-service`, `blinds-service`, `light-service`, `appliance-service`, `energy-service`, `aircon-service`, `gate-service`, `safety-service` (and the dashboard through the gateway).
+- Called by: `api-gateway-service`, `amx-service`, `heating-service`, `notification-service`, `water-service`, `presence-service`, `weather-service`, `blinds-service`, `light-service`, `appliance-service`, `energy-service`, `aircon-service`, `gate-service`, `safety-service`, `media-service` (and the dashboard through the gateway).
 - Broker: none.
 - **Before a change that touches what crosses these lines, read their files too**: `amx-service.md`, `heating-service.md`, `notification-service.md`, `water-service.md`, `presence-service.md`, `weather-service.md`, `blinds-service.md`, `light-service.md`, `appliance-service.md`, `energy-service.md`, `aircon-service.md`, `gate-service.md`, `safety-service.md` - and the contracts in `../organization.md`.
 
