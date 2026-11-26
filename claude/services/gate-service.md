@@ -34,7 +34,7 @@ Since HAS-453 the availability monitor, every minute on the technical channel (n
 
 Since HAS-454 `GET /home/gate/garage/alerts` - the open alarms and warnings of the garage gates (kind cold / empty house / long, level alarm / warning), for the gate page of the dashboard.
 
-Since HAS-485 every ring wakes the entrance panel - `POST /home/amx/panel/doorbell` of amx-service (>= 2.6.0, k8s DNS, `internal.service.amx`) beside the stored ring and the household message, not behind its 60 s window; bounded at 5 s, a failure a WARN (503 until the panel server of the Office master runs)
+Since HAS-485 every ring wakes the entrance panel (and the hall panel since HAS-502, through the same call) - `POST /home/amx/panel/doorbell` of amx-service (>= 2.6.0, k8s DNS, `internal.service.amx`) beside the stored ring and the household message, not behind its 60 s window; bounded at 5 s, a failure a WARN (503 until the panel server of the Office master runs)
 
 ## Releases
 
