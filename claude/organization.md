@@ -75,7 +75,7 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 |---|---|---|---|
 | `cholewa-commons` | Common utilities: the error contract, the pooled R2DBC factory, English validation messages, the RabbitMQ connection name, `NotificationPublisher`, the required properties, `DomainExceptionProcessor`, Logbook in the reactive chain, the scheduler pool and `ScheduledPass`. | ai, aircon, amx, api-gateway, appliance, blinds, boiler, database, energy, gate, heating, light, notification, presence, safety, shelly-cloud, water, weather | **2.0.0** (HAS-494) |
 | `cholewa-security` | Security / auth. | none yet — kept for possible future auth in `api-gateway-service` | **1.0.0** |
-| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events, household notifications). | aircon, amx, appliance, blinds, boiler, database, energy, gate, heating, light, notification, presence, safety, shelly-cloud, water, weather | **1.25.0** (HAS-480) |
+| `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events, household notifications). | aircon, amx, appliance, blinds, boiler, database, energy, gate, heating, light, notification, presence, safety, shelly-cloud, water, weather | **1.26.0** (HAS-509) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder. | aircon, blinds, energy, gate, heating, light, water, weather (2.7.0); appliance (2.2.0); boiler (2.1.0 - its clients switched off); shelly-cloud (still on 1.0.0) | **2.7.0** (HAS-389) |
 
 Versions in the services (2026-11-07): `cholewa-commons` 2.0.0 on energy and notification; 1.14.0 on aircon, amx, api-gateway, blinds, database, gate, heating, light, presence, safety and weather; 1.13.0 on water; 1.12.0 on appliance; 1.11.0 on boiler;
@@ -143,6 +143,10 @@ every consumer:
   its client id on the broker) and the id the base gives it; the base itself is not a registry device.
   `database-service` and the dashboard move before the first detector is stored; safety-service reads by `?kind=`.
   The fire alarm carries the `room` of the detector, so notification-service words it without a registry read.
+  **The amplifier unlock (1.26.0, HAS-509, epic HAS-508)**: `MemberPermission.amplifier_unlock` - a new permission,
+  so the same rule as a new enum value: database-service (HAS-510), presence-service (HAS-511), appliance-service
+  (HAS-512), gate-service (HAS-513) and the dashboard (HAS-517) read it before the owner grants it to anybody;
+  notification-service reads the registry with a record of its own and does not move for it.
 - **`shelly-client` 2.0.0** registers three beans in every WebFlux application that bumps it
   (`ShellyRpcClient`, `ShellyGen1Client`, `ShellyMqttDecoder`; `shelly.client.enabled: false`
   keeps them out). States are text, not enums; what a device did not send is `null`; nothing
