@@ -52,12 +52,17 @@ moves into that repository's `CLAUDE.md` with its next task and is then removed 
 ## Jira
 
 - Work only on tasks of the active sprint; for one outside it, ask to move it in first.
-- Starting a task that is in "To Do", move it to "In Progress" - the only status Claude changes.
+- Starting a task that is in "To Do", move it to "In Progress" unasked. The only other status Claude changes is "Done",
+  and only on the owner's yes (below); every other column stays the owner's.
 - No sentence about a Jira status, a PR or the cluster without a read of it in the same turn; a status not read in this
   turn is not mentioned, and the owner is never told to move a task.
 - **Every task ends with `quality-gate`** (owner, 2026-11-26): once its work is done (merged, deployed or committed),
   Claude runs the gate unasked, shows the report, and after the owner's go-ahead ticks the verified DoD items and leaves
-  the gate comment - only then the task is reported ready to close. "Done" itself stays the owner's.
+  the gate comment - only then the task is reported ready to close.
+- **Moving to "Done" (owner, 2026-11-26)**: once the gate passed and every verified DoD item is ticked, Claude asks
+  whether to move the task to "Done", and moves it only after the owner confirms - never unasked, never with an item
+  still open unless the owner says to close it anyway (as with an item left to observation). The status is read again
+  after the move.
 - "The service starts locally" of a Definition of Done is met by a clean start of the pod (owner, 2026-10-26).
 - A task the owner abandons is Done with the label `abandoned`; it is not counted as delivered and not proposed again.
 
