@@ -18,5 +18,6 @@ Since HAS-476 a detection that does not run is told: no pass evaluated for `pres
 
 ## Releases
 
-- **0.7.0** (2026-11-19, HAS-476: the alert of skipped passes, the certificate of the gateway since 2026-11-17 (until 2029-02-18) - the override of the manifest removed; cholewa-commons 1.14.0, smart-home-sdk 1.23.0
+- **0.8.0** (2026-11-26, HAS-511: the household registry read with the permission `amplifier_unlock` (SDK 1.26.0, epic HAS-508); Spring Boot 4.2.0, cholewa-commons 2.0.0, `spring-boot-starter-rabbitmq` - the connection `<pod>` in `/notification` opens on the first use, e.g. a read of the health)
+- 0.7.0 (2026-11-19, HAS-476: the alert of skipped passes, the certificate of the gateway since 2026-11-17 (until 2029-02-18) - the override of the manifest removed; cholewa-commons 1.14.0, smart-home-sdk 1.23.0
 - 0.6.1, 2026-10-23, HAS-305: both passes bounded, cholewa-commons 1.11.0; the UniFi calls logged by its own body-less Logbook filter)
