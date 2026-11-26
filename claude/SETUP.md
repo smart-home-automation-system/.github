@@ -75,9 +75,42 @@ under version control — the shared content lives in the `organization-reposito
 
 @organization-repository/claude/skills.md
 
+@organization-repository/claude/working-rules.md
+
 To recreate this workspace and configuration on another machine, see
 `organization-repository/claude/SETUP.md`.
 ```
+
+### 3a. Create the global `~/.claude/CLAUDE.md`
+
+The owner's rules for every project on the machine live in `~/.claude/CLAUDE.md` (`C:\Users\<user>\.claude\CLAUDE.md`),
+which is in no repository. Recreate it with these sections - the rules themselves are repeated for this project in
+`claude/working-rules.md`, so a session here follows them even without the global file:
+
+- **Browser automation (claude-in-chrome)** - a standing permission to use the plugin in every project: look at a
+  logged-in web UI yourself instead of asking for a refresh; the Chrome session is already signed in, never look for
+  credentials in files; open a new tab and close it when done; reading is free, anything that writes to a production
+  system stays subject to the rules of that project.
+- **Git commits and pull requests** - never add AI attribution anywhere in git history or on GitHub; before every
+  commit show the proposed message and wait for approval, commit and push only after it.
+- **Language** - the whole conversation in Polish, the next-step box and the task list included; only artifacts (code,
+  README, commits, PR texts, Jira) are English.
+
+### 3b. Shell pitfalls (Windows, Git Bash)
+
+What cost time on the owner's machine - the short form is in `claude/working-rules.md`:
+
+- Never write a file through a heredoc (`<<EOF`) - use the Write tool, then run the file with Bash.
+- A Spring placeholder `${...}` inside a double-quoted bash string is expanded by the shell - single quotes.
+- No `python` and no `jq` on the machine: parse with `node` (or PowerShell `ConvertFrom-Json`).
+- The working copies have CRLF line endings (`core.autocrlf`): normalise before a multi-line replace done by a script;
+  a file written by PowerShell carries `\r` - `tr -d '\r'` before bash reads it line by line.
+- `MSYS_NO_PATHCONV=1` before a command whose argument starts with `/` and is not a path (`kubectl exec ... -p /vhost`,
+  `docker run -c ssl=on` with paths).
+- Pods carry the label `name=<service>` (not `app=`).
+- Stop a port-forward by its own PID, never by killing every `kubectl.exe` - other sessions run theirs.
+- In `web-application` run prettier on the changed files only, never on a glob.
+- `sleep N; command` chains are blocked in the Claude desktop app - wait with an `until` loop or `gh run watch`.
 
 ### 4. Maven access to GitHub Packages
 
@@ -203,7 +236,7 @@ answers itself). Its allow rule: `Bash(bash organization-repository/claude/scrip
 - Built-in Claude Code skills (`/code-review`, `/security-review`, `/review`, …) work out
   of the box — see `claude/skills.md` for which to use where.
 - Org skills live in the `claude-tooling` marketplace repo (plugin `smart-home`,
-  7 skills — see `claude/skills.md`). Install once per machine:
+  the skills listed in `claude/skills.md`). Install once per machine:
 
   ```
   claude plugin marketplace add smart-home-automation-system/claude-tooling
