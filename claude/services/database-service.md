@@ -40,7 +40,8 @@ since 0.22.0 the household requests (HAS-409, epic HAS-407, `MemberRequest` of S
 
 ## Releases
 
-- **0.28.0** (2026-11-19, HAS-457: the fire detectors in the registry, V27, SDK 1.24.0
+- **0.29.0** (2026-11-26, HAS-510: the permission `amplifier_unlock` accepted and answered, SDK 1.26.0, no migration - `permissions` is `TEXT[]` of the constant names; Spring Boot 4.2.0, cholewa-commons 2.0.0 - a no-op without a broker; granted to nobody yet, epic HAS-508)
+- 0.28.0 (2026-11-19, HAS-457: the fire detectors in the registry, V27, SDK 1.24.0
 - 0.27.0, 2026-11-18, HAS-471: the opening sensors of a gate, V26, SDK 1.23.0
 - 0.26.0, 2026-11-17, HAS-445: the intercom and the gate in the registry, V25, SDK 1.22.0
 - 0.25.1, 2026-11-13, HAS-436: imports instead of fully qualified names, the MapStruct expressions through `@Mapper(imports)`; smart-home-sdk 1.21.0

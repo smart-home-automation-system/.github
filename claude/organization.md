@@ -53,7 +53,7 @@ code. After a release: the history goes into that file, the row here changes onl
 | `heating-service` | 6002 | Heating control: rooms, heaters and their schedules (read and written through the API), the house switch, the temperature sensors (Eaton, Shelly, BLU), open windows holding a room (`window` in `GET /rooms`), the stored temperature history. `GET /home/heating/rooms` is read by aircon-service and the dashboard; `GET /status/active` by boiler-service. | **1.23.2** (2026-11-13, HAS-433) |
 | `notification-service` | 6003 | Consumes the `alert`, `info` and `household` queues and delivers them: the technical Discord channel, and for the household Polish wording (`HouseholdMessages`) over Discord, Web Push and SMS (SMSAPI); the household requests texted at 08:00 with evening reminders. Deliberately not routed. A new `HouseholdEvent` must be readable here before its publisher sends it. | **0.15.1** (2026-11-25, HAS-498) |
 | `ai-service` | 6004 | AI integration (Spring AI 2.0 `ChatClient`, OpenAI). | **0.2.1** |
-| `database-service` | 6005 | The persistence facade: the household registry (members, roles, rooms, permissions, profiles, push subscriptions, household requests), the **device registry** of every device of the house (the Eaton configuration of amx-service is served from it) and the calendar of the house. A new `DeviceKind` or vendor is readable only from the release that added it - no rollback below it once a device of that kind is stored. | **0.28.0** (2026-11-19, HAS-457) |
+| `database-service` | 6005 | The persistence facade: the household registry (members, roles, rooms, permissions, profiles, push subscriptions, household requests), the **device registry** of every device of the house (the Eaton configuration of amx-service is served from it) and the calendar of the house. A new `DeviceKind` or vendor is readable only from the release that added it - no rollback below it once a device of that kind is stored. | **0.29.0** (2026-11-26, HAS-510) |
 | `water-service` | 6006 | Hot water (the tank, the flag boiler-service polls, the circulation pump and its automation), the water meter of the house (the Neo valve: readings, consumption, alarms, the valve command, the bills) and the water softener (the iQua cloud: state, history, alerts, regeneration, live flow). State in memory: `Recreate`, never scaled. | **0.19.0** (2026-11-09, HAS-401) |
 | `boiler-service` | 6007 | Drives the furnace and both pumps as relays of one Shelly Pro 4 from what heating-service and water-service ask for; alerts when that Shelly stops answering. A local run drives the real relays. | **1.4.0** (2026-10-23, HAS-306) |
 | `shelly-cloud-service` | 6008 | Shelly cloud integration - a **skeleton** (Actuator only, no endpoints). | **0.1.1** |
@@ -78,9 +78,9 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events, household notifications). | aircon, amx, appliance, blinds, boiler, database, energy, gate, heating, light, notification, presence, safety, shelly-cloud, water, weather | **1.26.0** (HAS-509) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder. | aircon, blinds, energy, gate, heating, light, water, weather (2.7.0); appliance (2.2.0); boiler (2.1.0 - its clients switched off); shelly-cloud (still on 1.0.0) | **2.7.0** (HAS-389) |
 
-Versions in the services (2026-11-07): `cholewa-commons` 2.0.0 on energy and notification; 1.14.0 on aircon, amx, api-gateway, blinds, database, gate, heating, light, presence, safety and weather; 1.13.0 on water; 1.12.0 on appliance; 1.11.0 on boiler;
+Versions in the services (2026-11-07): `cholewa-commons` 2.0.0 on database, energy and notification; 1.14.0 on aircon, amx, api-gateway, blinds, gate, heating, light, presence, safety and weather; 1.13.0 on water; 1.12.0 on appliance; 1.11.0 on boiler;
 1.7.0 on ai and shelly-cloud.
-`smart-home-sdk` 1.25.0 on amx, energy, gate and notification; 1.24.0 on aircon, blinds, database, light and safety; 1.23.0 on presence; 1.21.0 on weather and heating; 1.18.0 on water; 1.15.0 on appliance; 1.12.0 on boiler; 1.3.0 on
+`smart-home-sdk` 1.26.0 on database; 1.25.0 on amx, energy, gate and notification; 1.24.0 on aircon, blinds, light and safety; 1.23.0 on presence; 1.21.0 on weather and heating; 1.18.0 on water; 1.15.0 on appliance; 1.12.0 on boiler; 1.3.0 on
 shelly-cloud. Every service takes the latest with its next task (see Toolchain).
 
 `cholewa-commons` and `cholewa-security` are intentionally hosted on the personal
@@ -444,7 +444,7 @@ monitoring through the household notifications.
 
 - **Target: Java 21, Spring Boot 4.1.x** (`spring-boot-starter-parent`), Maven, groupId
   `cloud.cholewa`. The migration from Java 17 / Boot 4.0.1 is **finished** for every repository
-  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, appliance, boiler, database, heating, presence, water and weather on **4.1.2**, aircon, amx, blinds, gate, light and safety on **4.1.3**, api-gateway (with Spring Cloud 2026.0.0), energy and notification on **4.2.0**.
+  (2026-08-13); its chronicle is in `history.md`. Every service is on Boot **4.1.1**, appliance, boiler, heating, presence, water and weather on **4.1.2**, aircon, amx, blinds, gate, light and safety on **4.1.3**, api-gateway (with Spring Cloud 2026.0.0), database, energy and notification on **4.2.0**.
 - **Spring Boot and the own libraries follow one rule**: when a newer release exists, the
   repository being worked on moves to it in that task (a no-op bump included); the others follow
   with their next task. A mixed fleet after a release is the expected state, not drift to
