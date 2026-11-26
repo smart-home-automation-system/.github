@@ -38,7 +38,8 @@ Since HAS-485 every ring wakes the entrance panel (and the hall panel since HAS-
 
 ## Releases
 
-- **0.12.0** (2026-11-23, HAS-485: every ring wakes the entrance panel through amx-service; checked on a real ring - the call 70 ms after the bridge message
+- **0.13.0** (2026-11-26, HAS-513: the household profiles read with the permission `amplifier_unlock` (SDK 1.26.0, epic HAS-508); Spring Boot 4.2.0, cholewa-commons 2.0.0, `spring-boot-starter-rabbitmq`, `NotificationRabbitConfig` takes the broker from `RabbitConnectionDetails`)
+- 0.12.0 (2026-11-23, HAS-485: every ring wakes the entrance panel through amx-service; checked on a real ring - the call 70 ms after the bridge message
 - 0.11.0, 2026-11-22, HAS-483: the gate opened for the entrance panel - `POST /open?source=panel` without a member, told as `gate opened` from the panel, `gate_command` takes `PANEL` (V8); proven on the real gate with the owner 2026-11-22; Boot 4.1.3, smart-home-sdk 1.25.0
 - 0.10.0, 2026-11-19, HAS-454: GET /garage/alerts
 - 0.9.0, 2026-11-19, HAS-453: the availability monitor
