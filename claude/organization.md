@@ -562,6 +562,16 @@ monitoring through the household notifications.
 - **`amx`**: NetLinx language; analysis and suggestions, ask before modifying. The owner
   writes the NetLinx code and transfers it to the masters.
 - Never commit or push unless explicitly asked.
+- **Jira statuses (owner, 2026-11-26).** When Claude starts working on a HAS task that is in "To Do", it moves the task
+  to "In Progress" itself and says so in one line - the only status change Claude makes; "Done" and every other column
+  stay the owner's, and a task in another column is left as it is. **No sentence about a Jira status goes out without a
+  read of that issue in the same turn** - what the status is, that Claude did not change it, or what is left to move;
+  a status not read in this turn is not mentioned at all, and "as of my last read" is no substitute. Claude never tells
+  the owner to move a task. The owner works in Jira in parallel; the same holds for a PR, a pod or a release named in a
+  summary - re-read at the source right before reporting.
+- **A standing rule the owner gives goes into git** (owner, 2026-11-26): this file for a rule of the whole project, the
+  `CLAUDE.md` of a repository for one of that repository - not only into Claude's local memory, which is lost with a new
+  system or another machine.
 - **Java services and libraries (owner, 2026-10-22): the owner reviews a change of Claude in IntelliJ
   before it is pushed** - Claude leaves it **uncommitted** on the local `feature/HAS-<n>` branch (a local
   commit hides the changes from the Git tool of IntelliJ), names the files and
