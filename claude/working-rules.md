@@ -9,6 +9,8 @@ moves into that repository's `CLAUDE.md` with its next task and is then removed 
 
 - Talk to the owner in Polish only - every message, the task list and the next-step box, reports of skills; artifacts
   (code, README, commits, PR texts, Jira, docs) are English. The same rule is in his global `~/.claude/CLAUDE.md`.
+- **A question of the owner is answered first** (owner, 2026-11-26): when a message asks something, give the answer
+  before any change is made - also when the same message tells Claude to do something.
 - Ask one question per message, after listing what is settled.
 - A command for the owner to run goes into the closing message, as a ready PowerShell line.
 - A fact that is not known - of a device, a setting, a status - is asked or read at the source, never guessed.

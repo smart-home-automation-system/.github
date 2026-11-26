@@ -1,0 +1,67 @@
+# energy-service
+
+What this service does and its release history, moved out of `organization.md` (2026-11-26) - the detail a task
+on this service, or on a service that talks to it, reads first. Its own `CLAUDE.md` and README go deeper. Local port 6014.
+
+## Depends on - read also
+
+- Calls over HTTP: `database-service`, `weather-service`.
+- Called by: `api-gateway-service`, `aircon-service` (and the dashboard through the gateway).
+- Broker: consumes `device.prod.energy`; alerts, infos and SMS-marked notices to `/notification`.
+- **Before a change that touches what crosses these lines, read their files too**: `database-service.md`, `weather-service.md`, `aircon-service.md` - and the contracts in `../organization.md`.
+
+## What it does
+
+The energy of the house (epic HAS-324): the grid meter (Shelly Pro 3EM), the SOLAX and SOFAR inverters, the SOLAX battery and the SolaX cloud - readings, history, the balance of the grid, alarms, charging the battery before a planned outage.
+
+Since HAS-325 `GET /home/energy/status` answers the four sources (`meter`, `solax`, `sofar`, `solaxCloud`), `reachable: null` until their reading tasks. The grid meter since HAS-327: the Pro 3EM by `meter-device-id` / `meter-address` of the manifest (not the registry - it is the BTHome gateway 79 there), `em:0` / `emdata:0` from `device.prod.energy` on `/device` (user `device`) and `EM.GetStatus` / `EMData.GetStatus` every 5 min, the later arrival wins; `GET /home/energy/grid` (per phase, total power, import / export kWh, direction, `stale` after PT2M), `grid_reading` (V2) a minute after a change; `shelly-client` 2.3.0 with its beans on; own database `home-automation-energy` (pool 2); `Recreate`, never scaled. Routed by path, every method (gateway 0.10.0). The SOLAX since HAS-328: the inverters from the device registry (`?kind=inverter`, every 5 min), its dongle read over the local API every 15 s (`ReadRealTimeData`, layout type 33 mapped in its `CLAUDE.md` against SolaxCloud), one WARN an hour per kind of failure; `GET /home/energy/inverters`, `/inverters/{solax|sofar}` (AC, PV1 / PV2, the grid power of its meter), `/battery` (SOC, power, direction, the kWh left of 26.5); `inverter_reading` / `battery_reading` (V3) a minute after a change. The outages of the grid since HAS-334: known from the SOLAX alone (run mode 6 / 7 or no voltage at the grid connection point, two readings decide), `grid_outage` (V4), the loss, a low battery and the return as alerts and infos marked for an SMS, a reminder hourly; `GET /home/energy/outages?from=&to=`, the grid in `GET /status` (an object since 0.4.0). The sources watched since HAS-332: the SOLAX dongle and the grid meter silent for 5 min (judged by whole passes - the meter only when RPC fails too), a phase of the meter above 22 A for 3 min - an alert or warning, hourly reminders, an info at the return, the episodes in `source_alert` (V5). The SolaX cloud since HAS-329 (`openapi-eu.solaxcloud.com`, the secret `energy`): the SOLAX and its battery every 5 min, served with `source: cloud` while the dongle is stale, the alarms of the inverter every 15 min (17 Bat Power Low left out), the work-mode writes prepared for the charge task. The SOFAR since HAS-330 from the Solarman Open API (`globalapi.solarmanpv.com`, the four `solarman-*` keys of the secret `energy`): every 5 min, `GET /home/energy/inverters/sofar` with its state and faults in words, its faults told on Discord (`source_alert`, V7). The balance, the history and the days since HAS-331: `GET /home/energy/flows` (the balance now, the sign convention of the house - grid positive while taken, battery positive while charging), `/history` (nine metrics, the rules of the weather history - `HistoryRange` the fourth copy, by the owner), `/days` (`energy_day`, V8, closed from 00:15) and `/months` (net-metering in kWh, the billing year from September); the readings kept 730 days.
+
+Since HAS-333 an inverter that produces nothing in the sun (the illuminance of `GET /home/weather/current` over k8s DNS, the visual sunrise and sunset from `location-latitude` / `-longitude` of the manifest, below 100 W for 15 min above 20 000 lx) is an alert, reminded hourly, an info on the return (`source_alert` kind `production`, V9).
+
+Since HAS-337 the planned outages of Tauron Dystrybucja from its public API (no login) every hour for 30 days ahead - the address of the manifest (`tauron-city` / `-street` / `-house-no`), matched by the words of an announcement (the house has no address point): the street of the house by SMS with reminders the day before at 18:00 and 2 h before, the town alone an info; `planned_outage` (V10), `GET /home/energy/outages/planned` Since HAS-336 the SOLAX battery charged from the grid on demand - `POST` / `DELETE` / `GET /home/energy/battery/charge`, the Self Use work mode written through the SolaX cloud (the grid up to a target in a window), the command followed every 10 s, every end sets back the Self Use the owner runs (`energy.charge.baseline` - the API reads none of it); at most one write a minute; `battery_charge_run` (V11).
+
+Since HAS-338 the charge before a planned outage of the street (only those - owner), behind the switch of `GET` / `PUT /home/energy/automation` (V12, off by default): the start computed every minute from the SOC, the target, the power and the margin, the charge started then once an outage, told by SMS; `PUT /outages/planned/{id}/skip` / `unskip`.
+
+Since HAS-339 a daily summary at `energy.summary.time` (21:30 of the house) as one info on Discord: the production per inverter and its peak hour, the house load and self-consumption, the grid, the battery and the net-metering balance of the month, a source silent for most of the day said instead of its numbers.
+
+Since HAS-371 the irradiance forecast of Open-Meteo (`api.open-meteo.com`, no key) for both planes of panels (SOLAX 35°, SOFAR 37°, south - six required `pv-*` variables of the manifest) every hour for seven days, each hour stored at the start of the hour it covers (`pv_forecast`, V13; a started hour never changed, 60 days kept), for the calibration and the forecast API of epic HAS-370.
+
+Since HAS-372 `GET /home/energy/forecast` - seven days in kWh per inverter (the peak power x the irradiance / 1000 x the performance ratio, applied on read) judged against the mean house load of the last seven closed days (none / poor / fair / good), the day the sun comes back, the next 48 hours, the last two days compared; the ratio calibrated hourly on the closed days of the last 28 (`pv_forecast_day`, `pv_forecast_calibration`, V14; 0.8 below five days, clamped 0.3 - 1.0).
+
+Since HAS-494 (epic HAS-493) the battery reserve - `GET` / `PUT /home/energy/battery/reserve` (`energy_reserve`, V16; off by default, 10-100 % by 5, an optional `until` up to 7 days, `INVALID_RESERVE`): the Back Up work mode written through the SolaX cloud since 0.21.0 (`chargeUpperSoc` at the level, the grid charging to it all day; the write sets Charge Battery To only - the inverter pulls its Min SoC down to it and never up, so the floor is raised by hand, proven 2026-11-25), the end of every charge setting back the reserve while it holds, a charge below it `INVALID_CHARGE`; one write a minute in the lane of the charges, followed by its request status, a failed write told once and retried every 10 min, nothing written at a start (the first real write not proven yet - the SOLAX was down on a generator grid).
+
+Since HAS-503 the grid frequency off its band: the Pro 3EM outside 49.8 - 50.2 Hz for 2 min is an alert on the technical channel naming the outages of Tauron going on now as the likely cause (a generator - on 2026-11-24 the house ran on 51.0 Hz all day and both inverters refused to connect), a reminder hourly, an info back; `source_alert` kind `frequency` (V17), `grid.frequency` / `frequencyOff` in `GET /status`, the automatic charge waits while off.
+
+Since HAS-506 the currents per phase and the frequency of the Pro 3EM stored in `grid_reading` (V18 - one frequency, the phase furthest from 50 Hz) and the history of the voltages, the currents and the frequency served by `/history` (`grid-voltage-a|b|c`, `grid-current-a|b|c`, `grid-frequency`), from 2026-11-24 on.
+
+Since HAS-518 the settings of the SOLAX read from its dongle (`optType=ReadSetData`, every 5 min and 20 s after a write of the service): the work mode and the Min SoC and Charge Battery To of Back Up - `inverter` in `GET /battery/reserve` and `/status`, `floorBelowLevel` of the reserve; the reserve in force with the inverter out of Back Up or its Min SoC below the level for 10 min is a warning on the technical channel, reminded hourly, an info back (`source_alert` kind `reserve`, V20)
+
+## Releases
+
+- **0.23.0** (2026-11-26, HAS-518: the work mode and the Back Up floor of the SOLAX read from its dongle, a reserve the inverter does not hold told
+- 0.22.0, 2026-11-25, HAS-478: a failed automatic charge before a planned outage tried again after `energy.automation.retry-every` (PT5M), at most `max-attempts` (3) runs an outage - never after a target, a window or a cancel; its first failure and the give-up texted once each, the SOC not known (from the latest planned start on) and a start refused before a run was made texted too
+- 0.21.1, 2026-11-25, HAS-477: a planned outage Tauron announces twice under two ids stored and told as one - the row held stays, two rows stored before merged with the charge run and the skip carried, a row whose announcement is gone goes on under its twin
+- 0.21.0, 2026-11-24, HAS-505: a grid outage the house and the service were down through seen after the fact from the uptime of the Pro 3EM - its start after the time it was last seen with the reset reason power-on, stored as inferred (V19), one info, `GET /outages` answers `inferred`; HAS-494: the battery reserve written as the Back Up work mode (`batch_set_peace_mode`) - the cloud takes the mode and Charge Battery To, never `minSoc` (Self Use stayed 10, Back Up 30 for a sent 80), the floor set by the owner by hand
+- 0.20.0, 2026-11-24, HAS-506: the history of the voltage, the current and the frequency of the grid meter, V18
+- 0.19.1, 2026-11-24, HAS-503: the frequency alert - proven on the real generator at 14:46
+- 0.19.1 tells the outages of Tauron worded the same once
+- 0.18.0, 2026-11-24, HAS-494: the battery reserve; Spring Boot 4.2.0, cholewa-commons 2.0.0, smart-home-sdk 1.25.0
+- 0.17.2, 2026-11-13, HAS-435: imports instead of fully qualified names in the tests; smart-home-sdk 1.21.0
+- 0.17.1, 2026-11-12, HAS-422: the eLicznik fetched at 10:00, not 06:00 - the portal had not served the day before by then; a register not read yet (`success: false`, an empty list) is none, never a failed morning
+- 0.17.0, 2026-11-11, HAS-340: the meter of the operator from the eLicznik portal of Tauron - no official API, the login of the owner (secret `energy`: `elicznik-login` / `elicznik-password`, manifest `elicznik-meter-id`); every morning (06:00, 10:00 since 0.17.1) the days of the last 7 not stored whole and the registers, one login, none when nothing is missing (`elicznik_hour` / `elicznik_meter`, V15); `GET /elicznik`, `POST /elicznik/fetch` (at most hourly), the operator side in `/days` and `/months`; three days of failures an alert; the account, cookies and pages never logged; cholewa-commons 1.14.0, SDK 1.19.0, shelly-client 2.7.0
+- 0.16.0, 2026-11-04, HAS-372: GET /forecast and the calibration
+- 0.15.0, HAS-371: the irradiance forecast of Open-Meteo
+- 0.14.0, HAS-339: the daily energy summary
+- 0.13.0, HAS-338: automatic charging before a planned outage
+- 0.12.1 (2026-11-03, HAS-336: a charge confirmed by the battery charging while the grid imports - the SolaX cloud refuses the result of a command (10403)
+- 0.12.0, HAS-336: charging the battery from the grid on demand
+- 0.11.0, HAS-337: the planned outages of Tauron
+- 0.10.0, HAS-341: `GET /home/energy/alerts` - the open episodes of `source_alert`, newest first, for the energy page of the dashboard
+- 0.9.0, HAS-333: the production watch, shelly-client 2.4.0
+- 0.8.1, HAS-331: the balance, history and days - a sum of the history in one statement
+- 0.7.0, HAS-330: the SOFAR
+- 0.6.0, HAS-329: the SolaX cloud
+- 0.5.0, HAS-332: the sources watched and the phase overload
+- 0.4.0, HAS-334: the outages of the grid
+- 0.3.0, HAS-328: the SOLAX and its battery
+- 0.2.0, HAS-327: the grid meter)

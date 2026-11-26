@@ -11,7 +11,8 @@ organization cloned side by side. The workspace directory itself is NOT a git re
 
 | Layer | Location | Versioned in | Loaded when |
 |---|---|---|---|
-| 1. Organization context | `<workspace>/CLAUDE.md` → imports `organization-repository/claude/organization.md` and `claude/skills.md` | `.github` repo | Every Claude session started anywhere inside the workspace |
+| 1. Organization context | `<workspace>/CLAUDE.md` → imports `organization-repository/claude/organization.md`, `claude/skills.md` and `claude/working-rules.md` (the owner's standing rules) | `.github` repo | Every Claude session started anywhere inside the workspace |
+| 1a. Detail of one service | `organization-repository/claude/services/<name>.md` - what a service, a library or the dashboard does, its release history and what it depends on; **not imported**, read on demand as `organization.md` asks | `.github` repo | When a task works on that repository or on one that talks to it |
 | 2. Repo context | `<repo>/CLAUDE.md` (+ optional `<repo>/.claude/settings.json`, `<repo>/.claude/skills/`) | each repo | Sessions started inside that repo |
 | 3. Shared skills | org plugin marketplace (planned, repo `claude-tooling`) + built-in skills | its own repo | Everywhere, once installed |
 
