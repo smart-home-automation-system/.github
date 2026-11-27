@@ -140,8 +140,9 @@ moves into that repository's `CLAUDE.md` with its next task and is then removed 
 
 ### aircon-service
 
-- The frost protection of sanctum is proven by a real cold night only - no staged test by raising the schedule; its start
-  stays strictly below 8.0 °C (owner, 2026-11-16 / 24).
+- The frost protection of sanctum was proven by a real cold event on 2026-11-27 (7.9 °C, unit 144 on 13:09 - 13:40 by the
+  rule, the radiator plug untouched; HAS-387 Done) - never propose a staged test by raising the schedule; its start stays
+  strictly below 8.0 °C (owner, 2026-11-16 / 24).
 
 ### water-service
 
