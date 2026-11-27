@@ -191,7 +191,7 @@ every consumer:
   account (`magikabdul/amx-tenczynek`); the workspace directory is named `amx`. The masters
   and their addresses are in `src/systemCholewaTenczynek.apw`.
 - `web-application` — the dashboard: Angular 22 + Angular Material, desktop-first, installed as a PWA on the household's
-  iPhones. Current release **0.63.1** (2026-11-27, HAS-517). Frontend tasks carry the label `frontend`. Its release history,
+  iPhones. Current release **0.64.0** (2026-11-27, HAS-519). Frontend tasks carry the label `frontend`. Its release history,
   the views, **every place it writes to the house** and **the minimum version of each service a view needs** are in
   `claude/services/web-application.md` - read it before changing an endpoint the dashboard uses. What every backend
   task has to know:
