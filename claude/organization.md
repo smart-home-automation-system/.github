@@ -26,7 +26,7 @@ code. After a release: the history goes into that file, the row here changes onl
 
 | Service | Calls over HTTP | Called by (besides the gateway and the dashboard) |
 |---|---|---|
-| `api-gateway-service` | ai, aircon, amx, appliance, blinds, boiler, database, energy, gate, heating, light, presence, safety, water, weather | - |
+| `api-gateway-service` | ai, aircon, amx, appliance, blinds, boiler, database, energy, gate, heating, light, media, presence, safety, water, weather | - |
 | `amx-service` | database, weather, gate | blinds, light, gate |
 | `heating-service` | database | boiler, aircon |
 | `notification-service` | database, presence | - |
@@ -49,7 +49,7 @@ code. After a release: the history goes into that file, the row here changes onl
 
 | Repository | Local port | Purpose | Release |
 |---|---|---|---|
-| `api-gateway-service` | 6200 | Spring Cloud Gateway - the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic). A new routed path of a service is a gateway release. | **0.13.0** (2026-11-20, HAS-459) |
+| `api-gateway-service` | 6200 | Spring Cloud Gateway - the **only** entry point into the cluster from outside; static routes to the services over k8s DNS (see External traffic). A new routed path of a service is a gateway release. | **0.14.0** (2026-11-27, HAS-516) |
 | `amx-service` | 6001 | The bridge to the AMX control system: one permanent TCP socket to the frame server of the Television master (every Eaton frame of both gateways in, Eaton commands out) and a second one to the panel server of the Office master (the door panels of the entrance and the hall: doorbell, outside temperature, gate button). Publishes the room temperatures and the Eaton `DeviceEvent`; its HTTP side is only writes (`/home/amx/**`). The line protocols are pinned in `amx/CLAUDE.md`. | **2.8.0** (2026-11-23, HAS-487) |
 | `heating-service` | 6002 | Heating control: rooms, heaters and their schedules (read and written through the API), the house switch, the temperature sensors (Eaton, Shelly, BLU), open windows holding a room (`window` in `GET /rooms`), the stored temperature history. `GET /home/heating/rooms` is read by aircon-service and the dashboard; `GET /status/active` by boiler-service. | **1.23.2** (2026-11-13, HAS-433) |
 | `notification-service` | 6003 | Consumes the `alert`, `info` and `household` queues and delivers them: the technical Discord channel, and for the household Polish wording (`HouseholdMessages`) over Discord, Web Push and SMS (SMSAPI); the household requests texted at 08:00 with evening reminders. Deliberately not routed. A new `HouseholdEvent` must be readable here before its publisher sends it. | **0.15.1** (2026-11-25, HAS-498) |
@@ -80,7 +80,7 @@ Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardwar
 | `smart-home-sdk` | Shared domain / API models (household, device registry, calendar, device events, household notifications). | aircon, amx, appliance, blinds, boiler, database, energy, gate, heating, light, media, notification, presence, safety, shelly-cloud, water, weather | **1.26.0** (HAS-509) |
 | `shelly-client` | Models of what a Shelly answers and publishes, reactive HTTP clients (Gen2+ RPC, Gen1) and the MQTT decoder. | aircon, appliance, blinds, energy, gate, heating, light, water, weather (2.7.0); boiler (2.1.0 - its clients switched off); shelly-cloud (still on 1.0.0) | **2.7.0** (HAS-389) |
 
-Versions in the services (2026-11-07): `cholewa-commons` 2.0.0 on appliance, database, energy, gate, media, notification and presence; 1.14.0 on aircon, amx, api-gateway, blinds, heating, light, safety and weather; 1.13.0 on water; 1.11.0 on boiler;
+Versions in the services (2026-11-07): `cholewa-commons` 2.0.0 on api-gateway, appliance, database, energy, gate, media, notification and presence; 1.14.0 on aircon, amx, blinds, heating, light, safety and weather; 1.13.0 on water; 1.11.0 on boiler;
 1.7.0 on ai and shelly-cloud.
 `smart-home-sdk` 1.26.0 on appliance, database, gate, media and presence; 1.25.0 on amx, energy and notification; 1.24.0 on aircon, blinds, light and safety; 1.21.0 on weather and heating; 1.18.0 on water; 1.12.0 on boiler; 1.3.0 on
 shelly-cloud. Every service takes the latest with its next task (see Toolchain).
@@ -375,7 +375,9 @@ monitoring through the household notifications.
   every method - gateway 0.12.0, HAS-447): its `GET /home/gate` and **the opening of the gate, `POST /home/gate/open`** - one
   unauthenticated call from the LAN, the accepted state of everything behind the gateway. And `safety-service`
   (`/safety`, `/safety/**`, every method - gateway 0.13.0, HAS-459): the reads of the fire detectors and their alarms;
-  no `GET` with a side effect.
+  no `GET` with a side effect. And `media-service` (`/media`, `/media/**`, every method - gateway 0.14.0, HAS-516):
+  `POST /home/media/amplifier/unlock`, which sends the amplifier the file that unhangs it - a write to the house; no
+  `GET` with a side effect.
   `light-service` is routed the same way (`/light`, `/light/**`, every method - gateway 0.8.0,
   HAS-265): its `GET /home/light/events/gen1` (Gen1 lights, the Shelly Motion of the sanctum) is the
   second such `GET`. Every other side effect stays off `GET`.

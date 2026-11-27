@@ -7,8 +7,8 @@ reads first. Its own `CLAUDE.md` and README go deeper. Local port 6018.
 
 - Calls over HTTP: `database-service` (`GET /home/household/profiles`, the member who presses) and the amplifier on the
   LAN (`deployment-tools/scripts/media/amplifier.md`).
-- Called by: nobody yet; with HAS-516 `api-gateway-service` (`/media`, `/media/**`) and through it the dashboard
-  (HAS-517).
+- Called by: `api-gateway-service` (`/media`, `/media/**`, every method - gateway 0.14.0, HAS-516) and through it the
+  dashboard (HAS-517).
 - Broker: none. Database: none.
 - **Before a change that touches what crosses these lines, read their files too**: `database-service.md`,
   `api-gateway-service.md`, `web-application.md` - and the contracts in `../organization.md`.
