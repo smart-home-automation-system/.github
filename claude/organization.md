@@ -67,7 +67,7 @@ code. After a release: the history goes into that file, the row here changes onl
 | `aircon-service` | 6015 | The air conditioners: five Gree indoor units over their local protocol (no cloud) - state, commands with the 22 C cooling minimum, a rule per unit, open windows (from heating-service), the empty house and a lost grid, the power draw of their plugs, the filter hours. Takes the command source `safety`. `Recreate`, never scaled. | **0.12.0** (2026-11-22, HAS-467) |
 | `gate-service` | 6016 | The driveway gate and the intercom (the events of the Hikvision door station from the SDK bridge of `deployment-tools`), the two garage gates with their state, alarms and pulse, the events timeline, the household told of a ring and an opening; every ring wakes the door panels (entrance and hall) through amx-service. `POST /home/gate/open` is called by the dashboard and by amx-service (`source=panel`). `Recreate`, never scaled. | **0.13.0** (2026-11-26, HAS-513) |
 | `safety-service` | 6017 | The fire detectors (X-Sense, from the MQTT of the SBS50 base station): state, the fire alarm told to the whole household, the technical monitor, mute and self test, and the reactions to an alarm (lights on, blinds up, air conditioners off - each `source=safety`, behind switches that are off by default). `Recreate`, never scaled. | **0.5.0** (2026-11-22, HAS-468) |
-| `media-service` | 6018 | The audio and video equipment of the house - first the unlock of the amplifier that hangs after every loss of the grid (epic HAS-508; the route HAS-516, the button HAS-517). `POST /home/media/amplifier/unlock?source=dashboard&member=` sends the amplifier one file of its firmware form, once, one at a time, for a member with `amplifier_unlock` (the profiles of database-service); 202, the seven codes worded by the dashboard. No database, no broker, stateless (`RollingUpdate`). Its state cannot be read: never a status or a detection. | **0.2.0** (2026-11-27, HAS-515) |
+| `media-service` | 6018 | The audio and video equipment of the house - first the unlock of the amplifier that hangs after every loss of the grid (epic HAS-508; the route HAS-516, the button HAS-517). `POST /home/media/amplifier/unlock?source=dashboard&member=` sends the amplifier one file of its firmware form, once, one at a time, for a named member of the household (the profiles of database-service; since 0.3.0 no role or permission is judged - the dashboard decides who sees the button); 202, the six codes worded by the dashboard. No database, no broker, stateless (`RollingUpdate`). Its state cannot be read: never a status or a detection. | **0.3.0** (2026-11-27, HAS-517) |
 
 Do not confuse `api-gateway-service` (HTTP edge) with `amx-service` (AMX hardware bridge).
 
@@ -191,7 +191,7 @@ every consumer:
   account (`magikabdul/amx-tenczynek`); the workspace directory is named `amx`. The masters
   and their addresses are in `src/systemCholewaTenczynek.apw`.
 - `web-application` — the dashboard: Angular 22 + Angular Material, desktop-first, installed as a PWA on the household's
-  iPhones. Current release **0.62.1** (2026-11-25, HAS-499). Frontend tasks carry the label `frontend`. Its release history,
+  iPhones. Current release **0.63.1** (2026-11-27, HAS-517). Frontend tasks carry the label `frontend`. Its release history,
   the views, **every place it writes to the house** and **the minimum version of each service a view needs** are in
   `claude/services/web-application.md` - read it before changing an endpoint the dashboard uses. What every backend
   task has to know:

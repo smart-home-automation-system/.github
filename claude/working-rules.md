@@ -81,6 +81,15 @@ moves into that repository's `CLAUDE.md` with its next task and is then removed 
 - A standing rule the owner gives is written into git - this file, or the `CLAUDE.md` of the repository it concerns - not
   only into Claude's local memory.
 
+## Who may do what
+
+- **The backend never blocks a function by the role or a permission of the member who calls it** (owner, 2026-11-27):
+  what a member may do is decided by the dashboard alone, which does not show an option to a profile that is not
+  offered it (a page or a card left out, `data.access` / `data.permission` of a route). A service may check that a named
+  member exists (a trace of who pressed) but never answers 403 for a role or a permission. The administrator sees every
+  page and every card; a permission opens to a resident one thing of a page (House heating: the switch alone; Media: the
+  unlock of the amplifier alone).
+
 ## Java written by Claude
 
 - Controller -> service -> repository: a controller never injects a repository.
