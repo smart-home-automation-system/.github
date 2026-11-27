@@ -16,6 +16,7 @@ Lights (epic HAS-256): Eaton lights through `amx-service`, Shelly lights, the re
 
 ## Releases
 
-- **0.13.0** (2026-11-27, HAS-529: a BLU Motion judged by the last packet of its device - the `bthomedevice` of every gateway and its status topics -, not by its last motion, so a healthy sensor of an unused room is no longer alerted; its silence reminded once a day (`light.monitor.battery-reminder-every`); the Shelly Motion Gen1 no longer judged by silence; Boot 4.2.0, cholewa-commons 2.0.0, smart-home-sdk 1.26.0)
+- **0.14.0** (2026-11-27, HAS-530: the battery of a BLU Motion from the bthomedevice of its gateway, served as sensors[].battery of the occupancy read; below light.monitor.battery-low-below (20 %) one warning on the technical channel, never a reminder, never the household or an SMS, one info once it is back ten points above; kept in light_battery_alert, Flyway V6)
+- 0.13.0 (2026-11-27, HAS-529: a BLU Motion judged by the last packet of its device - the `bthomedevice` of every gateway and its status topics -, not by its last motion, so a healthy sensor of an unused room is no longer alerted; its silence reminded once a day (`light.monitor.battery-reminder-every`); the Shelly Motion Gen1 no longer judged by silence; Boot 4.2.0, cholewa-commons 2.0.0, smart-home-sdk 1.26.0)
 - 0.12.0 (2026-11-21, HAS-465: the command source `safety` - safety-service switching the lights on at a fire alarm, held like a person's change (the manual hold of the rule, the empty house leaves it alone); Boot 4.1.3, cholewa-commons 1.14.0, smart-home-sdk 1.24.0, shelly-client 2.7.0
 - 0.11.0, 2026-10-26, HAS-349: a motion going on keeps its room occupied)
